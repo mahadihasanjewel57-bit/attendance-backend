@@ -1,18 +1,19 @@
 FROM php:8.2-apache
 
-# Enable mysqli
+# Install mysqli only
 RUN docker-php-ext-install mysqli
 
-# Enable Apache rewrite (safe)
+# Disable conflicting MPM modules (FIX FOR YOUR ERROR)
+RUN a2dismod mpm_event || true
+RUN a2dismod mpm_worker || true
+RUN a2enmod mpm_prefork
+
+# Enable rewrite (safe)
 RUN a2enmod rewrite
 
-# Copy project
+# Copy files
 COPY . /var/www/html/
 
-# Set working directory
 WORKDIR /var/www/html
-
-# Permissions
-RUN chown -R www-data:www-data /var/www/html
 
 EXPOSE 80
