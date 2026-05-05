@@ -1,29 +1,325 @@
-final res = await http.post(
-  Uri.parse("${ApiConfig.baseUrl}/attendance.php"),
-  headers: {"Content-Type": "application/json"},
-  body: jsonEncode({
-    "pyempcde": widget.empId,
-    "pydevice": widget.deviceId,
-    "lat": pos.latitude,
-    "lng": pos.longitude,
-  }),
-);
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'dart:io' show Platform;
+import 'dart:async';
 
-final body = res.body.trim();
-
-debugPrint("ATTENDANCE RESPONSE: $body");
-
-// block HTML crash
-if (body.startsWith("<")) {
-  setState(() => status = "Server error (PHP crash)");
-  return;
+void main() {
+  runApp(const MyApp());
 }
 
-final data = jsonDecode(body);
+// ================= APP =================
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-if (data["status"] != "success") {
-  setState(() => status = data["message"] ?? "Attendance failed");
-  return;
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: LoginPage(),
+    );
+  }
 }
 
-setState(() => status = data["message"]);
+// ================= API =================
+class ApiConfig {
+  static const String baseUrl =
+      "https://attendance-backend-production-e174.up.railway.app";
+}
+
+// ================= DEVICE ID =================
+Future<String> getDeviceId() async {
+  DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+
+  if (kIsWeb) return "WEB_DEVICE";
+
+  if (Platform.isAndroid) {
+    final android = await deviceInfo.androidInfo;
+    return android.id ?? "UNKNOWN_ANDROID";
+  }
+
+  if (Platform.isIOS) {
+    final ios = await deviceInfo.iosInfo;
+    return ios.identifierForVendor ?? "UNKNOWN_IOS";
+  }
+
+  return "UNKNOWN_DEVICE";
+}
+
+// ================= LOGIN PAGE =================
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final TextEditingController empController = TextEditingController();
+  String status = "Enter Employee ID";
+
+  Future<void> login() async {
+    final empId = empController.text.trim();
+    final deviceId = await getDeviceId();
+
+    if (empId.isEmpty) {
+      setState(() => status = "Employee ID required");
+      return;
+    }
+
+    setState(() => status = "Checking...");
+
+    try {
+      final res = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/check_employee.php"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"pyempcde": empId}),
+      );
+
+      final body = res.body.trim();
+
+      if (body.startsWith("<")) {
+        setState(() => status = "Server error");
+        return;
+      }
+
+      final data = jsonDecode(body);
+
+      if (!mounted) return;
+
+      if (data["status"] == "new") {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text(data["emp_name"] ?? "Employee"),
+            content: const Text("Register this device?"),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await registerDevice(empId, deviceId);
+                },
+                child: const Text("Register"),
+              )
+            ],
+          ),
+        );
+      }
+
+      else if (data["status"] == "registered") {
+        final loginRes = await http.post(
+          Uri.parse("${ApiConfig.baseUrl}/login.php"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "pyempcde": empId,
+            "pydevice": deviceId,
+          }),
+        );
+
+        final loginBody = loginRes.body.trim();
+
+        if (loginBody.startsWith("<")) {
+          setState(() => status = "Login error");
+          return;
+        }
+
+        final loginData = jsonDecode(loginBody);
+
+        if (!mounted) return;
+
+        if (loginData["status"] == "success") {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DashboardPage(
+                empId: empId,
+                empName: loginData["employee"]["pyempnam"],
+                deviceId: deviceId,
+              ),
+            ),
+          );
+        } else {
+          setState(() => status = loginData["message"] ?? "Login failed");
+        }
+      }
+
+      else {
+        setState(() => status = data["message"] ?? "Error");
+      }
+    } catch (e) {
+      setState(() => status = "Connection error");
+    }
+  }
+
+  Future<void> registerDevice(String empId, String deviceId) async {
+    try {
+      final res = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/register_device.php"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "pyempcde": empId,
+          "pydevice": deviceId,
+        }),
+      );
+
+      final data = jsonDecode(res.body);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data["message"] ?? "Done")),
+      );
+
+      setState(() => status = "Please login again");
+    } catch (e) {
+      setState(() => status = "Register error");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock, size: 80, color: Colors.blue),
+              const SizedBox(height: 20),
+              Text(status),
+              const SizedBox(height: 20),
+              TextField(
+                controller: empController,
+                decoration: const InputDecoration(
+                  labelText: "Employee ID",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: login,
+                child: const Text("LOGIN"),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ================= DASHBOARD =================
+class DashboardPage extends StatefulWidget {
+  final String empId;
+  final String empName;
+  final String deviceId;
+
+  const DashboardPage({
+    super.key,
+    required this.empId,
+    required this.empName,
+    required this.deviceId,
+  });
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  String status = "Ready";
+  Timer? timer;
+  String timeString = "";
+
+  @override
+  void initState() {
+    super.initState();
+    timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final now = DateTime.now();
+      setState(() {
+        timeString =
+            "${now.hour.toString().padLeft(2, '0')}:"
+            "${now.minute.toString().padLeft(2, '0')}:"
+            "${now.second.toString().padLeft(2, '0')}";
+      });
+    });
+  }
+
+  Future<void> markAttendance() async {
+    setState(() => status = "Getting location...");
+
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+
+      final res = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/attendance.php"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "pyempcde": widget.empId,
+          "pydevice": widget.deviceId,
+          "lat": pos.latitude,
+          "lng": pos.longitude,
+        }),
+      );
+
+      final body = res.body.trim();
+
+      if (body.startsWith("<")) {
+        setState(() => status = "Server error");
+        return;
+      }
+
+      final data = jsonDecode(body);
+
+      setState(() => status = data["message"] ?? "Done");
+
+      if (data["status"] == "success") {
+        await Future.delayed(const Duration(seconds: 2));
+        if (!mounted) return;
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      setState(() => status = "Attendance error");
+    }
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("HR Dashboard")),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text("Welcome ${widget.empName}"),
+            Text("Time: $timeString"),
+            const SizedBox(height: 10),
+            Text(status),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: markAttendance,
+              child: const Text("MARK ATTENDANCE"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
