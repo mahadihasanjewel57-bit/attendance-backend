@@ -7,8 +7,14 @@ $data = json_decode(file_get_contents("php://input"), true);
 $emp_id = trim($data['pyempcde'] ?? '');
 $device = trim($data['pydevice'] ?? '');
 
-$stmt = $conn->prepare("SELECT pyempnam FROM pyempmas WHERE pyempcde=?");
-$stmt->bind_param("s", $emp_id);
+$stmt = $conn->prepare("
+    SELECT pyempnam 
+    FROM pyempmas 
+    WHERE pyempcde=? AND pyempcde IN (
+        SELECT pyempcde FROM emdevice WHERE pydevice=?
+    )
+");
+$stmt->bind_param("ss", $emp_id, $device);
 $stmt->execute();
 $res = $stmt->get_result();
 
