@@ -1,7 +1,7 @@
 <?php
 $host = "YOUR_RAILWAY_HOST";
 $user = "YOUR_DB_USER";
-$pass = "YOUR_DB_PASSWORD";
+$pass = "BfOvPrkVNErxGLKPpjIRrWKrCQVNhPHo";
 $db   = "YOUR_DB_NAME";
 
 $conn = new mysqli($host, $user, $pass, $db);
