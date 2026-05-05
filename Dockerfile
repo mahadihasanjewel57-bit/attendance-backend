@@ -1,10 +1,18 @@
-FROM php:8.2-cli
+FROM php:8.2-apache
 
-WORKDIR /app
-COPY . /app
-
+# Enable mysqli
 RUN docker-php-ext-install mysqli
 
-EXPOSE 8080
+# Enable Apache rewrite (safe)
+RUN a2enmod rewrite
 
-CMD ["php", "-S", "0.0.0.0:8080", "-t", "/app"]
+# Copy project
+COPY . /var/www/html/
+
+# Set working directory
+WORKDIR /var/www/html
+
+# Permissions
+RUN chown -R www-data:www-data /var/www/html
+
+EXPOSE 80
