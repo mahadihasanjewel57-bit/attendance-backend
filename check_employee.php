@@ -5,53 +5,41 @@ ini_set('display_errors', 1);
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 
 include "db.php";
 
-// ✅ Handle preflight request (important for some devices)
+// Handle preflight request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
+    exit;
 }
 
-// ✅ READ INPUT (JSON + fallback)
-$data = [];
+// ================= READ INPUT SAFELY =================
 
-// Try JSON first
+// Try JSON input
 $raw = file_get_contents("php://input");
-$json = json_decode($raw, true);
+$data = json_decode($raw, true);
 
-if (is_array($json)) {
-    $data = $json;
-}
-
-// Fallback to POST
-if (empty($data)) {
+// Fallback to POST if JSON empty
+if (!is_array($data)) {
     $data = $_POST;
 }
 
-// Final safe extraction
+// Final employee ID
 $emp_id = trim($data['pyempcde'] ?? '');
 
+// ================= DEBUG (REMOVE AFTER TEST) =================
+/*
 echo json_encode([
     "raw" => $raw,
     "post" => $_POST,
     "final_emp_id" => $emp_id
 ]);
 exit;
+*/
 
-// ✅ GET VALUE SAFELY
-$emp_id = trim($data['pyempcde'] ?? '');
-
-
-echo json_encode([
-    "raw_input" => file_get_contents("php://input"),
-    "parsed" => $data
-]);
-exit;
-
-// ✅ VALIDATION
-if (!$emp_id) {
+// ================= VALIDATION =================
+if ($emp_id === '') {
     echo json_encode([
         "status" => "error",
         "message" => "Employee ID required"
