@@ -1,0 +1,29 @@
+final res = await http.post(
+  Uri.parse("${ApiConfig.baseUrl}/attendance.php"),
+  headers: {"Content-Type": "application/json"},
+  body: jsonEncode({
+    "pyempcde": widget.empId,
+    "pydevice": widget.deviceId,
+    "lat": pos.latitude,
+    "lng": pos.longitude,
+  }),
+);
+
+final body = res.body.trim();
+
+debugPrint("ATTENDANCE RESPONSE: $body");
+
+// block HTML crash
+if (body.startsWith("<")) {
+  setState(() => status = "Server error (PHP crash)");
+  return;
+}
+
+final data = jsonDecode(body);
+
+if (data["status"] != "success") {
+  setState(() => status = data["message"] ?? "Attendance failed");
+  return;
+}
+
+setState(() => status = data["message"]);
