@@ -13,4 +13,5 @@ if ($conn->connect_error) {
         "error" => $conn->connect_error
     ]));
 }
+    header("Content-Type: application/json");
 ?>
