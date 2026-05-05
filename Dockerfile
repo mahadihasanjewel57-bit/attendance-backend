@@ -1,13 +1,12 @@
-FROM php:8.2-apache
+FROM php:8.2-cli
 
-# Install required PHP extension
+# Install mysqli
 RUN docker-php-ext-install mysqli
 
-# Enable only safe modules (NO MPM changes)
-RUN a2enmod rewrite
+# Copy project
+COPY . /app
 
-# Copy project files
-COPY . /var/www/html/
+WORKDIR /app
 
-# Fix permissions
-RUN chown -R www-data:www-data /var/www/html
+# Start PHP built-in server (no Apache)
+CMD ["php", "-S", "0.0.0.0:8080"]
