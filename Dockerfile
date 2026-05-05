@@ -1,19 +1,12 @@
-FROM php:8.2-apache
+FROM php:8.2-cli
 
-# Install mysqli only
+# Install mysqli
 RUN docker-php-ext-install mysqli
 
-# Disable conflicting MPM modules (FIX FOR YOUR ERROR)
-RUN a2dismod mpm_event || true
-RUN a2dismod mpm_worker || true
-RUN a2enmod mpm_prefork
+# Copy project
+COPY . /app
 
-# Enable rewrite (safe)
-RUN a2enmod rewrite
+WORKDIR /app
 
-# Copy files
-COPY . /var/www/html/
-
-WORKDIR /var/www/html
-
-EXPOSE 80
+# Start PHP built-in server (NO APACHE = NO MPM ERROR)
+CMD ["php", "-S", "0.0.0.0:8080"]
