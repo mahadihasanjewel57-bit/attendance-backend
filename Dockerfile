@@ -1,13 +1,13 @@
 FROM php:8.2-apache
 
-# Install mysqli extension
+# Install required PHP extension
 RUN docker-php-ext-install mysqli
 
-# Enable rewrite (safe for APIs)
+# Enable only safe modules (NO MPM changes)
 RUN a2enmod rewrite
 
 # Copy project files
 COPY . /var/www/html/
 
-# Ensure permissions
+# Fix permissions
 RUN chown -R www-data:www-data /var/www/html
