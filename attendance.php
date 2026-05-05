@@ -23,8 +23,9 @@ if (!$emp_id || !$device) {
 }
 
 // ================= DEVICE CHECK =================
-$stmt = $conn->prepare("SELECT pyempcde FROM emdevice WHERE pydevice=?");
-$stmt->bind_param("s", $device);
+// ================= DEVICE CHECK =================
+$stmt = $conn->prepare("SELECT pydevice FROM emdevice WHERE pyempcde=?");
+$stmt->bind_param("s", $emp_id);
 $stmt->execute();
 $res = $stmt->get_result();
 
