@@ -13,7 +13,13 @@ include "db.php";
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
+$raw = file_get_contents("php://input");
 
+echo json_encode([
+    "raw" => $raw,
+    "post" => $_POST
+]);
+exit;
 // ================= READ INPUT SAFELY =================
 
 // Try JSON input
