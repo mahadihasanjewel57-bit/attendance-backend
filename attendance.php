@@ -5,28 +5,33 @@ ini_set('display_errors', 1);
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 
 include "db.php";
 date_default_timezone_set("Asia/Dhaka");
 
-// ✅ READ JSON INPUT (FIXED)
-$data = json_decode(file_get_contents("php://input"), true);
+// Handle preflight
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit;
+}
 
-// Fallback if not JSON (optional safety)
-if (!$data) {
+// ================= INPUT =================
+$raw = file_get_contents("php://input");
+$data = json_decode($raw, true);
+
+// fallback to POST if needed
+if (!is_array($data)) {
     $data = $_POST;
 }
+
+// clean inputs (ONLY ONCE)
 $emp_id = trim($data['pyempcde'] ?? '');
+$device = trim($data['pydevice'] ?? '');
+$lat = $data['lat'] ?? null;
+$lng = $data['lng'] ?? null;
 
-// ✅ GET VALUES SAFELY
-$emp_id = $data['pyempcde'] ?? '';
-$device = $data['pydevice'] ?? '';
-$lat = $data['lat'] ?? '';
-$lng = $data['lng'] ?? '';
-
-// ✅ VALIDATION
-if (!$emp_id || !$device || !$lat || !$lng) {
+// ================= VALIDATION =================
+if ($emp_id === '' || $device === '' || !$lat || !$lng) {
     echo json_encode([
         "status" => "error",
         "message" => "Missing parameters"
@@ -40,7 +45,7 @@ $stmt->bind_param("s", $emp_id);
 $stmt->execute();
 $res = $stmt->get_result();
 
-if ($res->num_rows == 0) {
+if ($res->num_rows === 0) {
     echo json_encode([
         "status" => "error",
         "message" => "Device not registered"
@@ -87,7 +92,7 @@ $stmt->bind_param("s", $emp_id);
 $stmt->execute();
 $res = $stmt->get_result();
 
-if ($res->num_rows == 0) {
+if ($res->num_rows === 0) {
     echo json_encode([
         "status" => "error",
         "message" => "Location not set"
@@ -97,15 +102,15 @@ if ($res->num_rows == 0) {
 
 $loc = $res->fetch_assoc();
 
-// Distance function
+// ================= DISTANCE =================
 function distance($lat1, $lon1, $lat2, $lon2) {
     $earth = 6371000;
     $dLat = deg2rad($lat2 - $lat1);
     $dLon = deg2rad($lon2 - $lon1);
 
-    $a = sin($dLat / 2) * sin($dLat / 2) +
+    $a = sin($dLat / 2) ** 2 +
          cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-         sin($dLon / 2) * sin($dLon / 2);
+         sin($dLon / 2) ** 2;
 
     return $earth * (2 * atan2(sqrt($a), sqrt(1 - $a)));
 }
