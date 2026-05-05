@@ -23,20 +23,38 @@ if (!is_array($data)) {
     $data = $_POST;
 }
 
-// ================= SAFE INPUT =================
+// ================= USER INPUT =================
 $emp_id = trim($data['pyempcde'] ?? '');
 $device = trim($data['pydevice'] ?? '');
 $lat    = $data['lat'] ?? null;
 $lng    = $data['lng'] ?? null;
 
-// ================= VALIDATION =================
-if ($emp_id === '' || $device === '' || $lat === null || $lng === null) {
+// ================= VALIDATION (ONLY REQUIRED FIELDS) =================
+if ($emp_id === '' || $device === '') {
     echo json_encode([
         "status" => "error",
-        "message" => "Missing parameters"
+        "message" => "Employee ID or Device missing"
     ]);
     exit;
 }
+
+// ================= FIXED VALUES (YOUR TABLE RULES) =================
+$COMPCODE = 200;
+$NODECODE = 200;
+$AUTHTYPE = 128;
+$AUTHRSLT = 0;
+$OPENRSLT = 0;
+$FUNCNUMB = 0;
+$CHECKFLG = 0;
+$TERMNAME = "152";
+$LGSTATUS = "N";
+$PYACSENF = "N";
+
+// ================= TIME =================
+$time = date("Y-m-d H:i:s");
+
+// ================= DEVICE ID HASH =================
+$deviceInt = abs(crc32($device));
 
 // ================= DEVICE CHECK =================
 $stmt = $conn->prepare("SELECT pydevice FROM emdevice WHERE pyempcde=? LIMIT 1");
@@ -62,50 +80,7 @@ if ($row['pydevice'] !== $device) {
     exit;
 }
 
-// ================= LOCATION CHECK =================
-$stmt = $conn->prepare("SELECT latitude, longitude FROM pyemploc WHERE pyempcde=? LIMIT 1");
-$stmt->bind_param("s", $emp_id);
-$stmt->execute();
-$res = $stmt->get_result();
-
-if ($res->num_rows === 0) {
-    echo json_encode([
-        "status" => "error",
-        "message" => "Location not set"
-    ]);
-    exit;
-}
-
-$loc = $res->fetch_assoc();
-
-// ================= DISTANCE FUNCTION =================
-function distance($lat1, $lon1, $lat2, $lon2) {
-    $earth = 6371000;
-
-    $dLat = deg2rad($lat2 - $lat1);
-    $dLon = deg2rad($lon2 - $lon1);
-
-    $a = sin($dLat / 2) * sin($dLat / 2) +
-         cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-         sin($dLon / 2) * sin($dLon / 2);
-
-    return $earth * (2 * atan2(sqrt($a), sqrt(1 - $a)));
-}
-
-$dist = distance($lat, $lng, $loc['latitude'], $loc['longitude']);
-
-if ($dist > 100) {
-    echo json_encode([
-        "status" => "error",
-        "message" => "Outside allowed area"
-    ]);
-    exit;
-}
-
-// ================= INSERT ATTENDANCE =================
-$time = date("Y-m-d H:i:s");
-$deviceInt = abs(crc32($device));
-
+// ================= INSERT (SAFE MODE) =================
 $stmt = $conn->prepare("
     INSERT INTO pyacslog (
         COMPCODE, LOGINDEX, NODINDEX, LOGDTIME,
@@ -114,33 +89,45 @@ $stmt = $conn->prepare("
         TERMNAME, BRANCODE, LGSTATUS, REMARKSS,
         AUTHCODE, PYACSENF
     ) VALUES (
-        200, ?, ?, ?, 
-        ?, 200, 128, 0,
-        0, 0, ?, 0,
-        '152', NULL, 'N', NULL,
-        NULL, 'N'
+        ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, NULL, ?, NULL,
+        NULL, ?
     )
 ");
 
 $stmt->bind_param(
-    "iisss",
+    "iiissiiiiisiss",
+    $COMPCODE,
     $deviceInt,
     $deviceInt,
     $time,
     $emp_id,
-    $time
+    $NODECODE,
+    $AUTHTYPE,
+    $AUTHRSLT,
+    $OPENRSLT,
+    $FUNCNUMB,
+    $time,
+    $CHECKFLG,
+    $TERMNAME,
+    $LGSTATUS,
+    $PYACSENF
 );
 
+// ================= EXECUTE =================
 if ($stmt->execute()) {
     echo json_encode([
         "status" => "success",
-        "message" => "Attendance marked successfully",
+        "message" => "Attendance saved",
         "time" => $time
     ]);
 } else {
     echo json_encode([
         "status" => "error",
-        "message" => "Database insert failed"
+        "message" => "Insert failed",
+        "debug" => $stmt->error
     ]);
 }
 ?>
