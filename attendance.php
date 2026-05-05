@@ -82,39 +82,40 @@ if ($row['pydevice'] !== $device) {
 
 // ================= INSERT (SAFE MODE) =================
 $stmt = $conn->prepare("
-    INSERT INTO pyacslog (
-        COMPCODE, LOGINDEX, NODINDEX, LOGDTIME,
-        EMPLCODE, NODECODE, AUTHTYPE, AUTHRSLT,
-        OPENRSLT, FUNCNUMB, SLOGTIME, CHECKFLG,
-        TERMNAME, BRANCODE, LGSTATUS, REMARKSS,
-        AUTHCODE, PYACSENF
-    ) VALUES (
-        ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, NULL, ?, NULL,
-        NULL, ?
-    )
+INSERT INTO pyacslog (
+    COMPCODE, LOGINDEX, NODINDEX, LOGDTIME,
+    EMPLCODE, NODECODE, AUTHTYPE, AUTHRSLT,
+    OPENRSLT, FUNCNUMB, SLOGTIME, CHECKFLG,
+    TERMNAME, BRANCODE, LGSTATUS, REMARKSS,
+    AUTHCODE, PYACSENF
+) VALUES (
+    200, ?, ?, ?, 
+    ?, 200, 128, 0,
+    0, 0, ?, 0,
+    '152', NULL, 'N', NULL,
+    NULL, 'N'
+)
 ");
 
 $stmt->bind_param(
-    "iiissiiiiisiss",
-    $COMPCODE,
+    "iisss",
     $deviceInt,
     $deviceInt,
     $time,
     $emp_id,
-    $NODECODE,
-    $AUTHTYPE,
-    $AUTHRSLT,
-    $OPENRSLT,
-    $FUNCNUMB,
-    $time,
-    $CHECKFLG,
-    $TERMNAME,
-    $LGSTATUS,
-    $PYACSENF
+    $time
 );
+
+$ok = $stmt->execute();
+
+if (!$ok) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "DB insert failed",
+        "debug" => $stmt->error
+    ]);
+    exit;
+}
 
 // ================= EXECUTE =================
 if ($stmt->execute()) {
