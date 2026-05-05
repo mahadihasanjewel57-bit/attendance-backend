@@ -5,42 +5,44 @@ ini_set('display_errors', 1);
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 
 include "db.php";
 
-// ✅ Handle preflight request
+// ================= HANDLE PRE-FLIGHT =================
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
+    exit;
 }
 
 // ================= READ INPUT =================
-$data = json_decode(file_get_contents("php://input"), true);
+$raw = file_get_contents("php://input");
+$data = json_decode($raw, true);
 
 // fallback for form-data
-if (!$data) {
+if (!is_array($data)) {
     $data = $_POST;
 }
 
+// ================= SAFE VARIABLES =================
 $emp_id = trim($data['pyempcde'] ?? '');
 $device = trim($data['pydevice'] ?? '');
-$lat = $data['lat'] ?? '';
-$lng = $data['lng'] ?? '';
+
 // ================= VALIDATION =================
-if (!$emp_id || !$device) {
+if ($emp_id === '' || $device === '') {
     echo json_encode([
         "status" => "error",
-        "message" => "Missing data"
+        "message" => "Missing parameters"
     ]);
     exit;
 }
 
-// ================= CHECK IF ALREADY REGISTERED =================
+// ================= CHECK IF EMPLOYEE ALREADY HAS DEVICE =================
 $stmt = $conn->prepare("SELECT pydevice FROM emdevice WHERE pyempcde=?");
 $stmt->bind_param("s", $emp_id);
 $stmt->execute();
 $res = $stmt->get_result();
 
+// If employee already has a device → prevent duplicate registration
 if ($res->num_rows > 0) {
     echo json_encode([
         "status" => "error",
@@ -53,16 +55,16 @@ if ($res->num_rows > 0) {
 $stmt = $conn->prepare("INSERT INTO emdevice (pyempcde, pydevice) VALUES (?, ?)");
 $stmt->bind_param("ss", $emp_id, $device);
 
-// ================= RESULT =================
+// ================= RESPONSE =================
 if ($stmt->execute()) {
     echo json_encode([
         "status" => "success",
-        "message" => "New Device Registered. Please login again"
+        "message" => "New device registered successfully. Please login again"
     ]);
 } else {
     echo json_encode([
         "status" => "error",
-        "message" => "Register failed"
+        "message" => "Database insert failed"
     ]);
 }
 ?>
