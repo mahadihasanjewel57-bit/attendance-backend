@@ -19,7 +19,7 @@ $stmt->execute();
 $res = $stmt->get_result();
 
 if ($res->num_rows == 0) {
-    echo json_encode(["status"=>"error","message"=>"Employee not alregistered to another Device"]);
+    echo json_encode(["status"=>"error","message"=>"Employee already alregistered to another Device"]);
     exit;
 }
 
