@@ -49,7 +49,7 @@ Future<String> getDeviceId() async {
   return "UNKNOWN_DEVICE";
 }
 
-// ================= LOGIN PAGE =================
+// ================= LOGIN PAGE (UNCHANGED) =================
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -107,9 +107,7 @@ class _LoginPageState extends State<LoginPage> {
             ],
           ),
         );
-      }
-
-      else if (data["status"] == "registered") {
+      } else if (data["status"] == "registered") {
         final loginRes = await http.post(
           Uri.parse("${ApiConfig.baseUrl}/login.php"),
           headers: {"Content-Type": "application/json"},
@@ -144,9 +142,7 @@ class _LoginPageState extends State<LoginPage> {
         } else {
           setState(() => status = loginData["message"] ?? "Login failed");
         }
-      }
-
-      else {
+      } else {
         setState(() => status = data["message"] ?? "Error");
       }
     } catch (e) {
@@ -212,7 +208,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// ================= DASHBOARD =================
+// ================= DASHBOARD (UPDATED FULL) =================
 class DashboardPage extends StatefulWidget {
   final String empId;
   final String empName;
@@ -232,11 +228,20 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   String status = "Ready";
   Timer? timer;
+
   String timeString = "";
+  String dateString = "";
+
+  String checkIn = "--:--";
+  String checkOut = "--:--";
 
   @override
   void initState() {
     super.initState();
+
+    final now = DateTime.now();
+    dateString = "${now.day}-${now.month}-${now.year}";
+
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       final now = DateTime.now();
       setState(() {
@@ -248,11 +253,18 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  String getButtonText() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return "CHECK IN";
+    if (hour >= 13) return "CHECK OUT";
+    return "NOT ALLOWED";
+  }
+
   Future<void> markAttendance() async {
-    setState(() => status = "Getting location...");
+    setState(() => status = "Processing...");
 
     try {
-      final pos = await Geolocator.getCurrentPosition(
+      Position pos = await Geolocator.getCurrentPosition(
         locationSettings:
         const LocationSettings(accuracy: LocationAccuracy.high),
       );
@@ -268,27 +280,13 @@ class _DashboardPageState extends State<DashboardPage> {
         }),
       );
 
-      final body = res.body.trim();
+      final data = jsonDecode(res.body);
 
-      if (body.startsWith("<")) {
-        setState(() => status = "Server error");
-        return;
-      }
-
-      final data = jsonDecode(body);
-
-      setState(() => status = data["message"] ?? "Done");
-
-      if (data["status"] == "success") {
-        await Future.delayed(const Duration(seconds: 2));
-        if (!mounted) return;
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-              (route) => false,
-        );
-      }
+      setState(() {
+        status = data["message"] ?? "Done";
+        checkIn = data["check_in"] ?? checkIn;
+        checkOut = data["check_out"] ?? checkOut;
+      });
     } catch (e) {
       setState(() => status = "Attendance error");
     }
@@ -304,20 +302,34 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("HR Dashboard")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Text("Welcome ${widget.empName}"),
-            Text("Time: $timeString"),
-            const SizedBox(height: 10),
-            Text(status),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: markAttendance,
-              child: const Text("MARK ATTENDANCE"),
+      body: Center(
+        child: Card(
+          margin: const EdgeInsets.all(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Welcome ${widget.empName}",
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Text("Date: $dateString"),
+                Text("Time: $timeString"),
+                const Divider(),
+                Text("Check In: $checkIn"),
+                Text("Check Out: $checkOut"),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: markAttendance,
+                  child: Text(getButtonText()),
+                ),
+                const SizedBox(height: 10),
+                Text(status),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
