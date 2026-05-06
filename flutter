@@ -49,7 +49,7 @@ Future<String> getDeviceId() async {
   return "UNKNOWN_DEVICE";
 }
 
-// ================= LOGIN PAGE (UNCHANGED) =================
+// ================= LOGIN PAGE =================
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -184,10 +184,36 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.lock, size: 80, color: Colors.blue),
-              const SizedBox(height: 20),
-              Text(status),
-              const SizedBox(height: 20),
+
+              // ===== LOGO =====
+              Image.network(
+                "https://www.google.com/s2/favicons?domain=unionbank.com.bd&sz=256",
+                height: 90,
+              ),
+
+              const SizedBox(height: 15),
+
+              const Text(
+                "UNION BANK PLC",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF644BA4),
+                ),
+              ),
+
+              const SizedBox(height: 5),
+
+              const Text(
+                "Attendance",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
               TextField(
                 controller: empController,
                 decoration: const InputDecoration(
@@ -195,11 +221,17 @@ class _LoginPageState extends State<LoginPage> {
                   border: OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 20),
+
               ElevatedButton(
                 onPressed: login,
                 child: const Text("LOGIN"),
               ),
+
+              const SizedBox(height: 10),
+
+              Text(status),
             ],
           ),
         ),
@@ -208,7 +240,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// ================= DASHBOARD (UPDATED FULL) =================
+// ================= DASHBOARD =================
 class DashboardPage extends StatefulWidget {
   final String empId;
   final String empName;
@@ -301,9 +333,12 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("HR Dashboard")),
+      backgroundColor: const Color(0xFFF3F6F4),
+      appBar: AppBar(title: const Text("Attendance Dashboard")),
+
       body: Center(
         child: Card(
+          color: const Color(0xFF5D0476),
           margin: const EdgeInsets.all(20),
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -312,21 +347,36 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 Text(
                   "Welcome ${widget.empName}",
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
                 const SizedBox(height: 10),
-                Text("Date: $dateString"),
-                Text("Time: $timeString"),
-                const Divider(),
-                Text("Check In: $checkIn"),
-                Text("Check Out: $checkOut"),
+
+                Text("Date: $dateString",
+                    style: const TextStyle(color: Colors.white)),
+                Text("Time: $timeString",
+                    style: const TextStyle(color: Colors.white)),
+
+                const Divider(color: Colors.white),
+
+                Text("Check In: $checkIn",
+                    style: const TextStyle(color: Colors.white)),
+                Text("Check Out: $checkOut",
+                    style: const TextStyle(color: Colors.white)),
+
                 const SizedBox(height: 20),
+
                 ElevatedButton(
                   onPressed: markAttendance,
                   child: Text(getButtonText()),
                 ),
-                const SizedBox(height: 10),
-                Text(status),
+
+                const SizedBox(height: 20),
+
+                Text(status,
+                    style: const TextStyle(color: Colors.white)),
               ],
             ),
           ),
