@@ -24,6 +24,16 @@ if (!is_array($data) || empty($data)) {
     $data = $_POST;
 }
 
+// 🔥 debug (temporary)
+if (empty($data)) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "No input received",
+        "raw" => $raw
+    ]);
+    exit;
+}
+
 // ================= USER INPUT =================
 $emp_id = trim($data['pyempcde'] ?? '');
 $device = trim($data['pydevice'] ?? '');
