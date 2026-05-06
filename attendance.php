@@ -1,28 +1,57 @@
 <?php
-error_reporting(0);
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 
 include "db.php";
 date_default_timezone_set("Asia/Dhaka");
 
+// ================= PRE-FLIGHT =================
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit;
+}
+
 // ================= INPUT =================
-$data = json_decode(file_get_contents("php://input"), true);
+$raw = file_get_contents("php://input");
+$data = json_decode($raw, true);
+
 if (!is_array($data)) {
     $data = $_POST;
 }
 
 $emp_id = trim($data['pyempcde'] ?? '');
 $device = trim($data['pydevice'] ?? '');
-$lat    = $data['lat'] ?? '';
-$lng    = $data['lng'] ?? '';
+$lat    = $data['lat'] ?? null;
+$lng    = $data['lng'] ?? null;
 
+// ================= VALIDATION =================
 if ($emp_id == '' || $device == '') {
-    echo json_encode(["status"=>"error","message"=>"Missing data"]);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Employee ID or Device missing"
+    ]);
     exit;
 }
 
+// ================= FIXED VALUES =================
+$COMPCODE = 200;
+$NODECODE = 200;
+$AUTHTYPE = 128;
+$AUTHRSLT = 0;
+$OPENRSLT = 0;
+$FUNCNUMB = 0;
+$CHECKFLG = 0;
+$TERMNAME = "152";
+$LGSTATUS = "N";
+$PYACSENF = "N";
+
+// ================= TIME =================
 $time = date("Y-m-d H:i:s");
+$today = date("Y-m-d");
 
 // ================= DEVICE CHECK =================
 $stmt = $conn->prepare("SELECT pydevice FROM emdevice WHERE pyempcde=? LIMIT 1");
@@ -30,97 +59,86 @@ $stmt->bind_param("s", $emp_id);
 $stmt->execute();
 $res = $stmt->get_result();
 
-if ($res->num_rows == 0) {
-    echo json_encode(["status"=>"error","message"=>"Device not registered"]);
-    exit;
-}
+if ($res->num_rows > 0) {
+    $row = $res->fetch_assoc();
 
-$row = $res->fetch_assoc();
-
-if ($row['pydevice'] !== $device) {
-    echo json_encode(["status"=>"error","message"=>"Device mismatch"]);
-    exit;
-}
-
-// ================= 30 MIN DUPLICATE BLOCK =================
-$check = $conn->prepare("
-SELECT LOGDTIME 
-FROM pyacslog 
-WHERE EMPLCODE=? 
-ORDER BY LOGDTIME DESC 
-LIMIT 1
-");
-$check->bind_param("s", $emp_id);
-$check->execute();
-$res2 = $check->get_result();
-
-if ($last = $res2->fetch_assoc()) {
-    $diff = strtotime($time) - strtotime($last['LOGDTIME']);
-    if ($diff < 1800) {
+    if ($row['pydevice'] !== $device) {
         echo json_encode([
-            "status"=>"error",
-            "message"=>"Already punched within 30 minutes"
+            "status" => "error",
+            "message" => "Device registered to another employee"
         ]);
         exit;
     }
 }
 
-// ================= IN / OUT LOGIC =================
-$hour = (int)date("H");
-
-$type = ($hour < 13) ? "IN" : "OUT";
-$remark = $type;
-
-// ================= INSERT =================
+// ================= INSERT ATTENDANCE =================
 $stmt = $conn->prepare("
 INSERT INTO pyacslog (
     COMPCODE, LOGINDEX, NODINDEX, LOGDTIME,
     EMPLCODE, NODECODE, AUTHTYPE, AUTHRSLT,
     OPENRSLT, FUNCNUMB, SLOGTIME, CHECKFLG,
-    TERMNAME, LGSTATUS, REMARKSS, PYACSENF
+    TERMNAME, BRANCODE, LGSTATUS, REMARKSS,
+    AUTHCODE, PYACSENF
 ) VALUES (
-    200, 1, 1, ?, 
+    200, ?, ?, ?,
     ?, 200, 128, 0,
     0, 0, ?, 0,
-    '152', 'N', ?, 'N'
+    '152', NULL, 'N', NULL,
+    NULL, 'N'
 )
 ");
 
-$stmt->bind_param("sss", $time, $emp_id, $time, $remark);
+$deviceInt = abs(crc32($device));
+
+$stmt->bind_param(
+    "iisss",
+    $deviceInt,
+    $deviceInt,
+    $time,
+    $emp_id,
+    $time
+);
+
 $stmt->execute();
 
-// ================= LAST PUNCH =================
-$log = $conn->prepare("
-SELECT LOGDTIME, REMARKSS 
-FROM pyacslog 
-WHERE EMPLCODE=? 
-ORDER BY LOGDTIME DESC 
-LIMIT 10
+// ================= FETCH TODAY RECORDS =================
+$checkIn = "--:--";
+$checkOut = "--:--";
+
+$stmt2 = $conn->prepare("
+SELECT LOGDTIME
+FROM pyacslog
+WHERE EMPLCODE = ?
+AND DATE(LOGDTIME) = ?
+ORDER BY LOGDTIME ASC
 ");
 
-$log->bind_param("s", $emp_id);
-$log->execute();
-$res3 = $log->get_result();
+$stmt2->bind_param("ss", $emp_id, $today);
+$stmt2->execute();
+$res2 = $stmt2->get_result();
 
-$checkIn = "";
-$checkOut = "";
+$rows = [];
 
-while ($r = $res3->fetch_assoc()) {
-    if ($r['REMARKSS'] == "IN" && $checkIn == "") {
-        $checkIn = date("h:i A", strtotime($r['LOGDTIME']));
-    }
-    if ($r['REMARKSS'] == "OUT" && $checkOut == "") {
-        $checkOut = date("h:i A", strtotime($r['LOGDTIME']));
-    }
+while ($r = $res2->fetch_assoc()) {
+    $rows[] = $r['LOGDTIME'];
+}
+
+$count = count($rows);
+
+if ($count >= 1) {
+    $checkIn = date("h:i A", strtotime($rows[0]));
+}
+
+if ($count >= 2) {
+    $checkOut = date("h:i A", strtotime($rows[$count - 1]));
 }
 
 // ================= RESPONSE =================
 echo json_encode([
-    "status"=>"success",
-    "message"=>"Attendance saved",
-    "type"=>$type,
-    "check_in"=>$checkIn ?: "--:--",
-    "check_out"=>$checkOut ?: "--:--",
-    "time"=>date("h:i A", strtotime($time))
+    "status" => "success",
+    "message" => "Attendance saved",
+    "check_in" => $checkIn,
+    "check_out" => $checkOut
 ]);
+exit;
 ?>
