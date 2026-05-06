@@ -241,7 +241,7 @@ class _DashboardPageState extends State<DashboardPage> {
       final now = DateTime.now();
       setState(() {
         timeString =
-            "${now.hour.toString().padLeft(2, '0')}:"
+        "${now.hour.toString().padLeft(2, '0')}:"
             "${now.minute.toString().padLeft(2, '0')}:"
             "${now.second.toString().padLeft(2, '0')}";
       });
@@ -254,7 +254,7 @@ class _DashboardPageState extends State<DashboardPage> {
     try {
       final pos = await Geolocator.getCurrentPosition(
         locationSettings:
-            const LocationSettings(accuracy: LocationAccuracy.high),
+        const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
       final res = await http.post(
@@ -286,7 +286,7 @@ class _DashboardPageState extends State<DashboardPage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const LoginPage()),
-          (route) => false,
+              (route) => false,
         );
       }
     } catch (e) {
