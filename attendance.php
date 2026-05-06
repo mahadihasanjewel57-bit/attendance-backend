@@ -19,7 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $raw = file_get_contents("php://input");
 $data = json_decode($raw, true);
 
-if (!is_array($data)) {
+// 🔥 fallback handling
+if (!is_array($data) || empty($data)) {
     $data = $_POST;
 }
 
