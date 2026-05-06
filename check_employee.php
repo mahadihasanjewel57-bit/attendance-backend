@@ -1,62 +1,70 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
+error_reporting(0);
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
 
 include "db.php";
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit;
+$data = json_decode(file_get_contents("php://input"), true);
+if (!is_array($data)) {
+    $data = $_POST;
 }
 
-$data = json_decode(file_get_contents("php://input"), true);
-if (!is_array($data)) $data = $_POST;
-
 $emp_id = trim($data['pyempcde'] ?? '');
+$device  = trim($data['pydevice'] ?? '');
 
-if ($emp_id === '') {
+if ($emp_id == '' || $device == '') {
     echo json_encode([
         "status" => "error",
-        "message" => "Employee ID required"
+        "message" => "Missing data"
     ]);
     exit;
 }
 
 // check employee
-$stmt = $conn->prepare("SELECT pyempnam FROM pyempmas WHERE pyempcde=?");
+$stmt = $conn->prepare("SELECT pyempcde, pyempnam FROM pyemp WHERE pyempcde=? LIMIT 1");
 $stmt->bind_param("s", $emp_id);
 $stmt->execute();
 $res = $stmt->get_result();
 
-if ($res->num_rows === 0) {
+if ($res->num_rows == 0) {
     echo json_encode([
         "status" => "error",
-        "message" => "Invalid Employee ID"
+        "message" => "Employee not found"
     ]);
     exit;
 }
 
 $emp = $res->fetch_assoc();
 
-// check device
-$stmt = $conn->prepare("SELECT pydevice FROM emdevice WHERE pyempcde=?");
-$stmt->bind_param("s", $emp_id);
-$stmt->execute();
-$res = $stmt->get_result();
+// device check
+$stmt2 = $conn->prepare("SELECT pydevice FROM emdevice WHERE pyempcde=? LIMIT 1");
+$stmt2->bind_param("s", $emp_id);
+$stmt2->execute();
+$res2 = $stmt2->get_result();
 
-if ($res->num_rows > 0) {
+if ($res2->num_rows == 0) {
     echo json_encode([
-        "status" => "registered"
+        "status" => "error",
+        "message" => "Device not registered"
     ]);
     exit;
 }
 
+$row = $res2->fetch_assoc();
+
+if ($row['pydevice'] !== $device) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Device mismatch"
+    ]);
+    exit;
+}
+
+// success
 echo json_encode([
-    "status" => "new",
-    "emp_name" => $emp['pyempnam']
+    "status" => "success",
+    "employee" => $emp
 ]);
+exit;
 ?>
