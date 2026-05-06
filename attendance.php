@@ -55,7 +55,9 @@ if ($res->num_rows == 0) {
 }
 
 $row = $res->fetch_assoc();
-
+if ($row['pydevice'] !== $device) {
+    echo json_encode(["status"=>"error","message"=>"Unauthorized device"]);
+    
 if ($row['pydevice'] !== $deviceHash) {
     echo json_encode([
         "status" => "error",
