@@ -30,23 +30,26 @@ class ApiConfig {
       "https://attendance-backend-production-e174.up.railway.app";
 }
 
-// ================= DEVICE ID =================
-Future<String> getDeviceId() async {
+// ================= DEVICE ID (FIXED) =================
+Future<String> getDeviceId(String empId) async {
   DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
 
-  if (kIsWeb) return "WEB_DEVICE";
+  String baseId = "UNKNOWN_DEVICE";
 
-  if (Platform.isAndroid) {
+  if (kIsWeb) {
+    baseId = "WEB_DEVICE";
+  } else if (Platform.isAndroid) {
     final android = await deviceInfo.androidInfo;
-    return android.id ?? "UNKNOWN_ANDROID";
-  }
-
-  if (Platform.isIOS) {
+    baseId = android.id ?? "ANDROID";
+  } else if (Platform.isIOS) {
     final ios = await deviceInfo.iosInfo;
-    return ios.identifierForVendor ?? "UNKNOWN_IOS";
+    baseId = ios.identifierForVendor ?? "IOS";
   }
 
-  return "UNKNOWN_DEVICE";
+  String suffix =
+  empId.length >= 5 ? empId.substring(empId.length - 5) : empId;
+
+  return "${baseId}_$suffix";
 }
 
 // ================= LOGIN PAGE =================
@@ -63,12 +66,13 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> login() async {
     final empId = empController.text.trim();
-    final deviceId = await getDeviceId();
 
     if (empId.isEmpty) {
       setState(() => status = "Employee ID required");
       return;
     }
+
+    final deviceId = await getDeviceId(empId);
 
     setState(() => status = "Checking...");
 
@@ -117,7 +121,14 @@ class _LoginPageState extends State<LoginPage> {
           }),
         );
 
-        final loginData = jsonDecode(loginRes.body);
+        final loginBody = loginRes.body.trim();
+
+        if (loginBody.startsWith("<")) {
+          setState(() => status = "Login error");
+          return;
+        }
+
+        final loginData = jsonDecode(loginBody);
 
         if (!mounted) return;
 
@@ -144,24 +155,28 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> registerDevice(String empId, String deviceId) async {
-    final res = await http.post(
-      Uri.parse("${ApiConfig.baseUrl}/register_device.php"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "pyempcde": empId,
-        "pydevice": deviceId,
-      }),
-    );
+    try {
+      final res = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/register_device.php"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "pyempcde": empId,
+          "pydevice": deviceId,
+        }),
+      );
 
-    final data = jsonDecode(res.body);
+      final data = jsonDecode(res.body);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(data["message"] ?? "Done")),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data["message"] ?? "Done")),
+      );
 
-    setState(() => status = "Please login again");
+      setState(() => status = "Please login again");
+    } catch (e) {
+      setState(() => status = "Register error");
+    }
   }
 
   @override
@@ -197,7 +212,10 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              ElevatedButton(onPressed: login, child: const Text("LOGIN")),
+              ElevatedButton(
+                onPressed: login,
+                child: const Text("LOGIN"),
+              ),
               const SizedBox(height: 10),
               Text(status),
             ],
@@ -278,40 +296,44 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> markAttendance() async {
-    setState(() => status = "Checking permission...");
+    setState(() => status = "Processing...");
 
-    LocationPermission permission = await Geolocator.checkPermission();
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
 
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        setState(() => status = "Location denied");
+        return;
+      }
+
+      Position pos = await Geolocator.getCurrentPosition();
+
+      final res = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/attendance.php"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "pyempcde": widget.empId,
+          "pydevice": widget.deviceId,
+          "lat": pos.latitude,
+          "lng": pos.longitude,
+        }),
+      );
+
+      final data = jsonDecode(res.body);
+
+      setState(() {
+        status = data["message"];
+        checkIn = data["check_in"] ?? checkIn;
+        checkOut = data["check_out"] ?? checkOut;
+      });
+    } catch (e) {
+      setState(() => status = "Attendance error");
     }
-
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      setState(() => status = "Location denied");
-      return;
-    }
-
-    Position pos = await Geolocator.getCurrentPosition();
-
-    final res = await http.post(
-      Uri.parse("${ApiConfig.baseUrl}/attendance.php"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "pyempcde": widget.empId,
-        "pydevice": widget.deviceId,
-        "lat": pos.latitude,
-        "lng": pos.longitude,
-      }),
-    );
-
-    final data = jsonDecode(res.body);
-
-    setState(() {
-      status = data["message"];
-      checkIn = data["check_in"] ?? checkIn;
-      checkOut = data["check_out"] ?? checkOut;
-    });
   }
 
   @override
