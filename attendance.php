@@ -37,18 +37,6 @@ if ($emp_id == '' || $device == '') {
     exit;
 }
 
-// ================= FIXED VALUES =================
-$COMPCODE = 200;
-$NODECODE = 200;
-$AUTHTYPE = 128;
-$AUTHRSLT = 0;
-$OPENRSLT = 0;
-$FUNCNUMB = 0;
-$CHECKFLG = 0;
-$TERMNAME = "152";
-$LGSTATUS = "N";
-$PYACSENF = "N";
-
 // ================= TIME =================
 $time = date("Y-m-d H:i:s");
 $today = date("Y-m-d");
@@ -71,7 +59,38 @@ if ($res->num_rows > 0) {
     }
 }
 
+// ================= 30 MINUTE BLOCK CHECK =================
+$stmt = $conn->prepare("
+SELECT LOGDTIME 
+FROM pyacslog 
+WHERE EMPLCODE = ? 
+ORDER BY LOGDTIME DESC 
+LIMIT 1
+");
+
+$stmt->bind_param("s", $emp_id);
+$stmt->execute();
+$res = $stmt->get_result();
+
+if ($res->num_rows > 0) {
+    $row = $res->fetch_assoc();
+    $lastTime = strtotime($row['LOGDTIME']);
+    $currentTime = strtotime($time);
+
+    $diffMinutes = ($currentTime - $lastTime) / 60;
+
+    if ($diffMinutes < 30) {
+        echo json_encode([
+            "status" => "error",
+            "message" => "You must wait 30 minutes between punches"
+        ]);
+        exit;
+    }
+}
+
 // ================= INSERT ATTENDANCE =================
+$deviceInt = abs(crc32($device));
+
 $stmt = $conn->prepare("
 INSERT INTO pyacslog (
     COMPCODE, LOGINDEX, NODINDEX, LOGDTIME,
@@ -87,8 +106,6 @@ INSERT INTO pyacslog (
     NULL, 'N'
 )
 ");
-
-$deviceInt = abs(crc32($device));
 
 $stmt->bind_param(
     "iisss",
