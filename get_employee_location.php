@@ -2,13 +2,7 @@
 
 header("Content-Type: application/json");
 
-$conn = new mysqli(
-    $_ENV['MYSQLHOST'],
-    $_ENV['MYSQLUSER'],
-    $_ENV['MYSQLPASSWORD'],
-    $_ENV['MYSQLDATABASE']
-);
-
+include "db.php";
 if ($conn->connect_error) {
     echo json_encode([
         "status" => "error",
