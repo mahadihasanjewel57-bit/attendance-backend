@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
+//import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(const MyApp());
@@ -32,24 +35,33 @@ class ApiConfig {
 
 // ================= DEVICE ID (FIXED) =================
 Future<String> getDeviceId(String empId) async {
-  DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+  final prefs = await SharedPreferences.getInstance();
 
-  String baseId = "UNKNOWN_DEVICE";
+  String? savedId = prefs.getString("device_unique_id");
 
-  if (kIsWeb) {
-    baseId = "WEB_DEVICE";
-  } else if (Platform.isAndroid) {
-    final android = await deviceInfo.androidInfo;
-    baseId = android.id ?? "ANDROID";
-  } else if (Platform.isIOS) {
-    final ios = await deviceInfo.iosInfo;
-    baseId = ios.identifierForVendor ?? "IOS";
+  if (savedId != null && savedId.isNotEmpty) {
+    return savedId;
   }
 
-  String suffix =
-  empId.length >= 5 ? empId.substring(empId.length - 5) : empId;
+  DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
 
-  return "${baseId}_$suffix";
+  String androidId = "UNKNOWN";
+
+  if (Platform.isAndroid) {
+    final android = await deviceInfo.androidInfo;
+
+    androidId = android.id.isNotEmpty
+        ? android.id
+        : "ANDROID";
+  }
+
+  const uuid = Uuid();
+
+  String deviceId = "${androidId}_${uuid.v4()}";
+
+  await prefs.setString("device_unique_id", deviceId);
+
+  return deviceId;
 }
 
 // ================= LOGIN PAGE =================
@@ -188,10 +200,16 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.network(
-                "https://www.google.com/s2/favicons?domain=unionbank.com.bd&sz=256",
-                height: 90,
-              ),
+             // Image.asset(
+             //   'assets/images/app_logo.png',
+             //   width: 180,
+             //   height: 180,flutter clean
+
+             // ),
+               Image.network(
+               "https://www.google.com/s2/favicons?domain=unionbank.com.bd&sz=256",
+               height: 90,
+             ),
               const SizedBox(height: 15),
               const Text(
                 "UNION BANK PLC",
@@ -241,6 +259,10 @@ class DashboardPage extends StatefulWidget {
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
+  double calculateDistanceInMeters(
+      double lat1, double lng1, double lat2, double lng2) {
+    return Geolocator.distanceBetween(lat1, lng1, lat2, lng2);
+  }
 }
 
 class _DashboardPageState extends State<DashboardPage> {
@@ -253,6 +275,7 @@ class _DashboardPageState extends State<DashboardPage> {
   String checkIn = "--:--";
   String checkOut = "--:--";
 
+
   @override
   void initState() {
     super.initState();
@@ -260,15 +283,12 @@ class _DashboardPageState extends State<DashboardPage> {
     fetchTodayAttendance();
 
     final now = DateTime.now();
-    dateString = "${now.day}-${now.month}-${now.year}";
+    dateString = DateFormat("dd-MMM-yyyy").format(now);
 
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       final now = DateTime.now();
       setState(() {
-        timeString =
-        "${now.hour.toString().padLeft(2, '0')}:"
-            "${now.minute.toString().padLeft(2, '0')}:"
-            "${now.second.toString().padLeft(2, '0')}";
+        timeString =timeString = DateFormat("hh:mm:ss a").format(now);
       });
     });
   }
@@ -290,50 +310,86 @@ class _DashboardPageState extends State<DashboardPage> {
 
   String getButtonText() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return "CHECK IN";
-    if (hour >= 13) return "CHECK OUT";
-    return "NOT ALLOWED";
+
+    if (hour < 12) {
+      return "CHECK IN";
+    } else {
+      return "CHECK OUT";
+    }
   }
 
-  Future<void> markAttendance() async {
-    setState(() => status = "Processing...");
+  Future<void> markAttendance() async { setState(() => status = "Processing...");
 
-    try {
-      LocationPermission permission = await Geolocator.checkPermission();
+  try {
+    LocationPermission permission = await Geolocator.checkPermission();
 
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        setState(() => status = "Location denied");
-        return;
-      }
-
-      Position pos = await Geolocator.getCurrentPosition();
-
-      final res = await http.post(
-        Uri.parse("${ApiConfig.baseUrl}/attendance.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "pyempcde": widget.empId,
-          "pydevice": widget.deviceId,
-          "lat": pos.latitude,
-          "lng": pos.longitude,
-        }),
-      );
-
-      final data = jsonDecode(res.body);
-
-      setState(() {
-        status = data["message"];
-        checkIn = data["check_in"] ?? checkIn;
-        checkOut = data["check_out"] ?? checkOut;
-      });
-    } catch (e) {
-      setState(() => status = "Attendance error");
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
     }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      setState(() => status = "Location denied");
+      return;
+    }
+
+    Position pos = await Geolocator.getCurrentPosition();
+
+    // ================= 100M CHECK START =================
+
+    final locRes = await http.post(
+      Uri.parse("${ApiConfig.baseUrl}/get_employee_location.php"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"pyempcde": widget.empId}),
+    );
+
+    final locData = jsonDecode(locRes.body);
+
+    if (locData["status"] != "success") {
+      setState(() => status = "Office location not set");
+      return;
+    }
+
+    double officeLat = double.parse(locData["latitude"].toString());
+    double officeLng = double.parse(locData["longitude"].toString());
+
+    double distance = Geolocator.distanceBetween(
+      pos.latitude,
+      pos.longitude,
+      officeLat,
+      officeLng,
+    );
+
+    if (distance > 100) {
+      setState(() => status =
+      "Outside allowed range (${distance.toStringAsFixed(0)} m)");
+      return;
+    }
+
+    // ================= 100M CHECK END =================
+
+    final res = await http.post(
+      Uri.parse("${ApiConfig.baseUrl}/attendance.php"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "pyempcde": widget.empId,
+        "pydevice": widget.deviceId,
+        "lat": pos.latitude,
+        "lng": pos.longitude,
+      }),
+    );
+
+    final data = jsonDecode(res.body);
+
+    setState(() {
+      status = data["message"];
+      checkIn = data["check_in"] ?? checkIn;
+      checkOut = data["check_out"] ?? checkOut;
+    });
+
+  } catch (e) {
+    setState(() => status = "Attendance error");
+  }
   }
 
   @override
@@ -368,7 +424,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 Text("Check Out: $checkOut",
                     style: const TextStyle(color: Colors.white)),
                 const SizedBox(height: 20),
-                ElevatedButton(
+                                ElevatedButton(
                   onPressed: markAttendance,
                   child: Text(getButtonText()),
                 ),
