@@ -41,6 +41,12 @@ header("Access-Control-Allow-Methods: POST, OPTIONS");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { exit; }
 
 include "db.php";
+if (!$conn) {
+    die(json_encode([
+        "status" => "error",
+        "message" => "Database connection failed"
+    ]));
+}
 date_default_timezone_set("Asia/Dhaka");
 
 $raw  = file_get_contents("php://input");
