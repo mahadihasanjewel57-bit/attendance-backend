@@ -4,6 +4,22 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 header("Content-Type: application/json");
+$raw = file_get_contents("php://input");
+
+file_put_contents(
+    "debug.log",
+    date("Y-m-d H:i:s") . "\n" . $raw . "\n\n",
+    FILE_APPEND
+);
+
+$data = json_decode($raw, true);
+
+if (!$data) {
+    die(json_encode([
+        "status" => "error",
+        "message" => "JSON decode failed"
+    ]));
+}
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
