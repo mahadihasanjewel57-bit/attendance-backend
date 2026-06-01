@@ -1,7 +1,21 @@
-
 <?php
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+set_exception_handler(function ($e) {
+    http_response_code(500);
+
+    echo json_encode([
+        "status" => "error",
+        "message" => $e->getMessage(),
+        "file" => basename($e->getFile()),
+        "line" => $e->getLine()
+    ]);
+    exit;
+});
 
 header("Content-Type: application/json");
 $raw = file_get_contents("php://input");
