@@ -142,8 +142,16 @@ if ($blockRes->num_rows > 0) {
     }
 }
 
+
+$maxStmt = $conn->prepare("
+    SELECT MAX(LOGINDEX) AS max_id FROM pyacslog
+");
+$maxStmt->execute();
+$res = $maxStmt->get_result()->fetch_assoc();
+
+$nextId = ($res['max_id'] === null) ? 1000 : ($res['max_id'] + 1);
+
 // ── Insert attendance ─────────────────────────────────────────────
-$deviceId = substr(preg_replace('/\D/', '', $device), 0, 8);
 
 $ins = $conn->prepare("
     INSERT INTO pyacslog (
@@ -161,7 +169,7 @@ $ins = $conn->prepare("
     )
 ");
 
-$ins->bind_param("sssss", $deviceId, $deviceId, $time, $emp_id, $time);
+$ins->bind_param("iisss", $nextId, $nextId, $time, $emp_id, $time);
 
 if (!$ins->execute()) {
     echo json_encode(["status" => "error", "message" => "Failed to save attendance"]);
