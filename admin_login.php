@@ -10,8 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input_pass = trim($_POST['admin_pass'] ?? '');
 
     if ($input_id === ADMIN_ID && $input_pass === ADMIN_PASS) {
-        setcookie('admin_token', AUTH_TOKEN, time() + 3600 * 8, '/');
-        header("Location: admin_dashboard.php");
+        header("Location: admin_dashboard.php?token=" . AUTH_TOKEN);
         exit;
     } else {
         $error = "Invalid ID or Password";
@@ -42,10 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 100%;
             max-width: 400px;
         }
-        .logo {
-            text-align: center;
-            margin-bottom: 24px;
-        }
+        .logo { text-align: center; margin-bottom: 24px; }
         .logo h2 { color: #644BA4; font-size: 22px; }
         .logo p  { color: #888; font-size: 13px; }
         label {
@@ -97,9 +93,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     <form method="POST">
         <label>Admin ID</label>
-        <input type="text" name="admin_id" placeholder="Enter Admin ID" required>
+        <input type="text" name="admin_id"
+            placeholder="Enter Admin ID" required>
         <label>Password</label>
-        <input type="password" name="admin_pass" placeholder="Enter Password" required>
+        <input type="password" name="admin_pass"
+            placeholder="Enter Password" required>
         <button type="submit">LOGIN</button>
     </form>
     <?php if ($error): ?>
