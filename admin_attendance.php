@@ -1,6 +1,7 @@
 <?php
 define('AUTH_TOKEN', 'ubpladmin2026secure');
-if (($_COOKIE['admin_token'] ?? '') !== AUTH_TOKEN) {
+$token = $_GET['token'] ?? '';
+if ($token !== AUTH_TOKEN) {
     header("Location: admin_login.php");
     exit;
 }
@@ -8,6 +9,7 @@ include "db.php";
 date_default_timezone_set("Asia/Dhaka");
 
 $today       = date("Y-m-d");
+$t           = AUTH_TOKEN;
 $filter_date = $_GET['date'] ?? $today;
 $filter_emp  = trim($_GET['emp'] ?? '');
 
@@ -121,15 +123,16 @@ $result = $stmt->get_result();
 <div class="navbar">
     <h1>🏦 Union Bank — Admin Panel</h1>
     <div class="nav-links">
-        <a href="admin_dashboard.php">Dashboard</a>
-        <a href="admin_attendance.php">Attendance</a>
-        <a href="admin_employees.php">Employees</a>
-        <a href="admin_device.php">Devices</a>
-        <a href="admin_logout.php">Logout</a>
+        <a href="admin_dashboard.php?token=<?= $t ?>">Dashboard</a>
+        <a href="admin_attendance.php?token=<?= $t ?>">Attendance</a>
+        <a href="admin_employees.php?token=<?= $t ?>">Employees</a>
+        <a href="admin_device.php?token=<?= $t ?>">Devices</a>
+        <a href="admin_login.php">Logout</a>
     </div>
 </div>
 <div class="container">
     <form method="GET">
+        <input type="hidden" name="token" value="<?= $t ?>">
         <div class="filter-card">
             <div>
                 <label>Date</label>
