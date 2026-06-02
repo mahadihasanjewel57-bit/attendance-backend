@@ -1,12 +1,16 @@
-FROM php:8.2-cli
+FROM php:8.2-apache
 
 # Install mysqli
 RUN docker-php-ext-install mysqli
 
-# Copy project
-COPY . /app
+# Enable Apache mod_rewrite
+RUN a2enmod rewrite
 
-WORKDIR /app
+# Copy project files to Apache web root
+COPY . /var/www/html/
 
-# Start PHP built-in server (NO APACHE = NO MPM ERROR)
-CMD ["php", "-S", "0.0.0.0:8080"]
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html
+
+# Expose port 80
+EXPOSE 80
