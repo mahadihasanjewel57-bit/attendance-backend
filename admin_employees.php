@@ -1,19 +1,25 @@
 <?php
-session_start();
-if (!isset($_SESSION['admin_logged_in'])) {
+define('AUTH_TOKEN', 'ubpladmin2026secure');
+if (($_COOKIE['admin_token'] ?? '') !== AUTH_TOKEN) {
     header("Location: admin_login.php");
     exit;
 }
 include "db.php";
+date_default_timezone_set("Asia/Dhaka");
 
-$employees = $conn->query("
+$today = date("Y-m-d");
+
+$result = $conn->query("
     SELECT m.pyempcde, m.pyempnam,
         d.pydevice,
-        l.latitude, l.longitude
+        l.latitude, l.longitude,
+        (SELECT COUNT(*) FROM pyacslog p
+            WHERE p.EMPLCODE = m.pyempcde
+            AND DATE(p.LOGDTIME) = '$today') as today_punches
     FROM pyempmas m
     LEFT JOIN emdevice d ON m.pyempcde = d.pyempcde
     LEFT JOIN pyemploc l ON m.pyempcde = l.pyempcde
-    ORDER BY m.pyempnam ASC
+    ORDER BY m.pyempcde ASC
 ");
 ?>
 <!DOCTYPE html>
@@ -25,7 +31,6 @@ $employees = $conn->query("
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f3f0fa; }
-
         .navbar {
             background: #644BA4;
             color: white;
@@ -40,21 +45,14 @@ $employees = $conn->query("
             color: white;
             text-decoration: none;
             font-size: 13px;
+            margin-left: 8px;
             padding: 6px 12px;
             border: 1px solid rgba(255,255,255,0.4);
             border-radius: 6px;
         }
         .navbar a:hover { background: rgba(255,255,255,0.2); }
-
         .container { padding: 24px; max-width: 1100px; margin: auto; }
-
-        .section-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 12px;
-        }
-
+        .section-title { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 12px; }
         table {
             width: 100%;
             background: white;
@@ -63,36 +61,26 @@ $employees = $conn->query("
             border-collapse: collapse;
             overflow: hidden;
         }
-        th {
-            background: #644BA4;
-            color: white;
-            padding: 12px 16px;
-            text-align: left;
-            font-size: 13px;
-        }
-        td {
-            padding: 12px 16px;
-            font-size: 13px;
-            border-bottom: 1px solid #f0f0f0;
-            color: #333;
-        }
+        th { background: #644BA4; color: white; padding: 12px 16px; text-align: left; font-size: 13px; }
+        td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #f0f0f0; color: #333; }
         tr:last-child td { border-bottom: none; }
         tr:hover td { background: #faf8ff; }
-
-        .badge {
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-        .badge-green { background: #e8f5e9; color: #2e7d32; }
-        .badge-red { background: #fdecea; color: #c0392b; }
-        .badge-blue { background: #e3f2fd; color: #1565c0; }
+        .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+        .badge-green  { background: #e8f5e9; color: #2e7d32; }
+        .badge-red    { background: #fdecea; color: #c0392b; }
         .badge-orange { background: #fff3e0; color: #e65100; }
+        .badge-blue   { background: #e3f2fd; color: #1565c0; }
+        .device-text {
+            font-size: 11px;
+            color: #888;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
-
 <div class="navbar">
     <h1>🏦 Union Bank — Admin Panel</h1>
     <div class="nav-links">
@@ -103,11 +91,8 @@ $employees = $conn->query("
         <a href="admin_logout.php">Logout</a>
     </div>
 </div>
-
 <div class="container">
-
     <div class="section-title">👥 Employee List</div>
-
     <table>
         <thead>
             <tr>
@@ -115,48 +100,61 @@ $employees = $conn->query("
                 <th>Employee ID</th>
                 <th>Name</th>
                 <th>Device</th>
-                <th>Location</th>
+                <th>GPS Location</th>
+                <th>Today</th>
+                <th>Status</th>
             </tr>
         </thead>
         <tbody>
         <?php
         $i = 1;
-        while ($row = $employees->fetch_assoc()):
-            $hasDevice = !empty($row['pydevice']);
-            $hasLocation = !empty($row['latitude']);
+        while ($row = $result->fetch_assoc()):
+            $has_device = !empty($row['pydevice']);
+            $has_loc    = !empty($row['latitude']);
+            $punches    = intval($row['today_punches']);
+
+            if ($punches >= 2) {
+                $today_status = "<span class='badge badge-green'>Complete</span>";
+            } elseif ($punches === 1) {
+                $today_status = "<span class='badge badge-orange'>Checked In</span>";
+            } else {
+                $today_status = "<span class='badge badge-red'>Absent</span>";
+            }
+
+            $overall = ($has_device && $has_loc)
+                ? "<span class='badge badge-blue'>Ready</span>"
+                : "<span class='badge badge-red'>Incomplete</span>";
         ?>
             <tr>
                 <td><?= $i++ ?></td>
                 <td><?= htmlspecialchars($row['pyempcde']) ?></td>
                 <td><?= htmlspecialchars($row['pyempnam']) ?></td>
                 <td>
-                    <?php if ($hasDevice): ?>
-                        <span class="badge badge-green">✔ Registered</span>
+                    <?php if ($has_device): ?>
+                        <span class='badge badge-green'>Registered</span>
+                        <div class='device-text'>
+                            <?= htmlspecialchars(substr($row['pydevice'], 0, 20)) ?>...
+                        </div>
                     <?php else: ?>
-                        <span class="badge badge-red">✘ Not Registered</span>
+                        <span class='badge badge-red'>Not Registered</span>
                     <?php endif; ?>
                 </td>
                 <td>
-                    <?php if ($hasLocation): ?>
-                        <span class="badge badge-blue">
+                    <?php if ($has_loc): ?>
+                        <span class='badge badge-green'>Assigned</span>
+                        <div class='device-text'>
                             <?= $row['latitude'] ?>, <?= $row['longitude'] ?>
-                        </span>
+                        </div>
                     <?php else: ?>
-                        <span class="badge badge-orange">✘ Not Assigned</span>
+                        <span class='badge badge-red'>Not Assigned</span>
                     <?php endif; ?>
                 </td>
+                <td><?= $today_status ?></td>
+                <td><?= $overall ?></td>
             </tr>
         <?php endwhile; ?>
-        <?php if ($i === 1): ?>
-            <tr>
-                <td colspan="5" style="text-align:center; color:#888; padding:24px;">
-                    No employees found
-                </td>
-            </tr>
-        <?php endif; ?>
         </tbody>
     </table>
-
 </div>
 </body>
 </html>
