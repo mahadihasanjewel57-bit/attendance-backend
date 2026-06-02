@@ -153,7 +153,7 @@ $row = $maxStmt->fetch_assoc();
 $nextId = (int)$row['next_id'];
 
 // Safety: keep within 8 digits
-if ($nextId > 99999) {
+if ($nextId > 99999999) {
     echo json_encode([
         "status" => "error",
         "message" => "LOGINDEX limit exceeded"
