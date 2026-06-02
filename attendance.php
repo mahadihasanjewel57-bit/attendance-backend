@@ -143,7 +143,7 @@ if ($blockRes->num_rows > 0) {
 }
 
 // ── Insert attendance ─────────────────────────────────────────────
-$deviceInt = abs(crc32($device));
+$deviceId = substr(preg_replace('/\D/', '', $device), 0, 8);
 
 $ins = $conn->prepare("
     INSERT INTO pyacslog (
@@ -160,7 +160,8 @@ $ins = $conn->prepare("
         NULL, 'N'
     )
 ");
-$ins->bind_param("iisss", $deviceInt, $deviceInt, $time, $emp_id, $time);
+
+$ins->bind_param("sssss", $deviceId, $deviceId, $time, $emp_id, $time);
 
 if (!$ins->execute()) {
     echo json_encode(["status" => "error", "message" => "Failed to save attendance"]);
