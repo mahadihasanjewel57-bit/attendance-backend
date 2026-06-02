@@ -1,18 +1,16 @@
 <?php
-session_start();
-
-$admin_id = "0204201700923";
-$admin_pass = "Mahadi_007";
+define('ADMIN_ID',   '0204201700923');
+define('ADMIN_PASS', 'Mahadi_007');
+define('AUTH_TOKEN', 'ubpladmin2026secure');
 
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input_id   = trim($_POST['admin_id'] ?? '');
+    $input_id   = trim($_POST['admin_id']   ?? '');
     $input_pass = trim($_POST['admin_pass'] ?? '');
 
-    if ($input_id === $admin_id && $input_pass === $admin_pass) {
-        $_SESSION['admin_logged_in'] = true;
-        $_SESSION['admin_id'] = $input_id;
+    if ($input_id === ADMIN_ID && $input_pass === ADMIN_PASS) {
+        setcookie('admin_token', AUTH_TOKEN, time() + 3600 * 8, '/');
         header("Location: admin_dashboard.php");
         exit;
     } else {
@@ -48,14 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-align: center;
             margin-bottom: 24px;
         }
-        .logo h2 {
-            color: #644BA4;
-            font-size: 22px;
-        }
-        .logo p {
-            color: #888;
-            font-size: 13px;
-        }
+        .logo h2 { color: #644BA4; font-size: 22px; }
+        .logo p  { color: #888; font-size: 13px; }
         label {
             display: block;
             font-size: 13px;
@@ -71,9 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 14px;
             outline: none;
         }
-        input:focus {
-            border-color: #644BA4;
-        }
+        input:focus { border-color: #644BA4; }
         button {
             margin-top: 24px;
             width: 100%;
@@ -105,17 +95,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h2>🏦 UNION BANK PLC</h2>
         <p>Admin Panel</p>
     </div>
-
     <form method="POST">
         <label>Admin ID</label>
         <input type="text" name="admin_id" placeholder="Enter Admin ID" required>
-
         <label>Password</label>
         <input type="password" name="admin_pass" placeholder="Enter Password" required>
-
         <button type="submit">LOGIN</button>
     </form>
-
     <?php if ($error): ?>
         <div class="error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
