@@ -143,7 +143,24 @@ if ($blockRes->num_rows > 0) {
 }
 
 
-$deviceId = substr(preg_replace('/\D/', '', $device), 0, 8);
+// Get next unique LOGINDEX/NODINDEX
+$maxStmt = $conn->query("
+    SELECT COALESCE(MAX(LOGINDEX), 999) + 1 AS next_id
+    FROM pyacslog
+");
+
+$row = $maxStmt->fetch_assoc();
+$nextId = (int)$row['next_id'];
+
+// Safety: keep within 8 digits
+if ($nextId > 99999999) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "LOGINDEX limit exceeded"
+    ]);
+    exit;
+}
+
 
 $ins = $conn->prepare("
     INSERT INTO pyacslog (
@@ -161,7 +178,7 @@ $ins = $conn->prepare("
     )
 ");
 
-$ins->bind_param("sssss", $deviceId, $deviceId, $time, $emp_id, $time);
+$ins->bind_param("iisss", $nextId, $nextId, $time, $emp_id, $time);
 
 if (!$ins->execute()) {
     echo json_encode(["status" => "error", "message" => "Failed to save attendance"]);
