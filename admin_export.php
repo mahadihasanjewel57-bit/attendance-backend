@@ -60,15 +60,16 @@ echo "<tr>
 
 $i = 1;
 while ($row = $result->fetch_assoc()) {
-    $ci     = date("h:i A", strtotime($row['check_in']));
-    $co     = $row['punches'] > 1
+    $ci       = date("h:i A", strtotime($row['check_in']));
+    $co       = $row['punches'] > 1
                 ? date("h:i A", strtotime($row['check_out']))
                 : "--:--";
-    $status = $row['punches'] > 1 ? "Complete" : "Checked In";
-
+    $status   = $row['punches'] > 1 ? "Complete" : "Checked In";
+    $emplcode = $row['EMPLCODE'];
+    $style    = 'mso-number-format:"\@"';
     echo "<tr>
         <td>{$i}</td>
-       <td style="mso-number-format:'\@'"><?= $row['EMPLCODE'] ?></td>
+        <td style=\"$style\">$emplcode</td>
         <td>{$row['pyempnam']}</td>
         <td>{$ci}</td>
         <td>{$co}</td>
