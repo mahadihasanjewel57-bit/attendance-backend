@@ -68,7 +68,7 @@ while ($row = $result->fetch_assoc()) {
 
     echo "<tr>
         <td>{$i}</td>
-        <td style="mso-number-format:'\@'">{$row['EMPLCODE']}</td>
+       <td style="mso-number-format:'\@'"><?= $row['EMPLCODE'] ?></td>
         <td>{$row['pyempnam']}</td>
         <td>{$ci}</td>
         <td>{$co}</td>
