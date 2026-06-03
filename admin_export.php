@@ -10,6 +10,7 @@ date_default_timezone_set("Asia/Dhaka");
 
 $filter_date = $_GET['date'] ?? date("Y-m-d");
 $filter_emp  = trim($_GET['emp'] ?? '');
+$filter_post = trim($_GET['post'] ?? '');
 
 $where  = "WHERE DATE(p.LOGDTIME) = ?";
 $params = [$filter_date];
