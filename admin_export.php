@@ -38,41 +38,52 @@ $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $result = $stmt->get_result();
 
-$filename = "attendance_" . $filter_date . ".csv";
-header("Content-Type: text/csv");
+$filename = "attendance_" . $filter_date . ".xls";
+header("Content-Type: application/vnd.ms-excel; charset=utf-8");
 header("Content-Disposition: attachment; filename=\"$filename\"");
 header("Pragma: no-cache");
 header("Expires: 0");
-
-$out = fopen("php://output", "w");
-
-// ── Header row ────────────────────────────────────────────────────
-fputcsv($out, [
-    'No', 'Employee ID', 'Employee Name',
-    'Check In', 'Check Out', 'Total Punches', 'Status', 'Date'
-]);
-
-// ── Data rows ─────────────────────────────────────────────────────
+?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<style>
+    td { mso-number-format: "\@"; }
+    .num { mso-number-format: "0"; }
+</style>
+</head>
+<body>
+<table border="1">
+<tr>
+    <th>No</th>
+    <th>Employee ID</th>
+    <th>Employee Name</th>
+    <th>Check In</th>
+    <th>Check Out</th>
+    <th>Total Punches</th>
+    <th>Status</th>
+    <th>Date</th>
+</tr>
+<?php
 $i = 1;
-while ($row = $result->fetch_assoc()) {
+while ($row = $result->fetch_assoc()):
     $ci     = date("h:i A", strtotime($row['check_in']));
     $co     = $row['punches'] > 1
                 ? date("h:i A", strtotime($row['check_out']))
                 : "--:--";
     $status = $row['punches'] > 1 ? "Complete" : "Checked In";
-
-    fputcsv($out, [
-        $i,
-       "=" . '"' . $row['EMPLCODE'] . '"',
-        $row['pyempnam'],
-        $ci,
-        $co,
-        $row['punches'],
-        $status,
-        $filter_date
-    ]);
-    $i++;
-}
-
-fclose($out);
 ?>
+<tr>
+    <td class="num"><?= $i++ ?></td>
+    <td><?= $row['EMPLCODE'] ?></td>
+    <td><?= $row['pyempnam'] ?></td>
+    <td><?= $ci ?></td>
+    <td><?= $co ?></td>
+    <td class="num"><?= $row['punches'] ?></td>
+    <td><?= $status ?></td>
+    <td><?= $filter_date ?></td>
+</tr>
+<?php endwhile; ?>
+</table>
+</body>
+</html>
