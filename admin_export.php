@@ -44,7 +44,7 @@ $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $result = $stmt->get_result();
 
-$filename = "attendance_" . $filter_date . ".pdf";
+$filename = "attendance_" . $filter_date . ".xls";
 header("Content-Type: application/vnd.ms-excel; charset=utf-8");
 header("Content-Disposition: attachment; filename=\"$filename\"");
 header("Pragma: no-cache");
