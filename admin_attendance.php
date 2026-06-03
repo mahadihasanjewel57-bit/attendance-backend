@@ -173,9 +173,13 @@ $result = $stmt->get_result();
                class="btn btn-export">
                📥 Export Excel
             </a>
-            <a href="admin_export_raw.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>"
+           <a href="admin_export_raw.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>"
                class="btn btn-raw">
                📊 Export Raw Table
+            </a>
+            <a href="admin_export_sql.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>"
+               class="btn btn-sql">
+               🗄️ Export SQL
             </a>
         </div>
     </form>
