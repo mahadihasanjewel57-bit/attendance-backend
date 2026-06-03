@@ -59,7 +59,14 @@ header("Expires: 0");
 </style>
 </head>
 <body>
-<table border="1">
+<table border="1"cellpadding="5" cellspacing="0" width="100%">
+      <thead>
+    <tr>
+            <th colspan="9" style="text-align:center; font-size:18px; padding:10px;">
+                UNION BANK PLC.<br>
+                Daily Attendance Information
+            </th>
+        </tr>
 <tr>
     <th>No</th>
     <th>Employee ID</th>
@@ -71,6 +78,7 @@ header("Expires: 0");
     <th>Status</th>
     <th>Date</th>
 </tr>
+          </thead>
 <?php
 $i = 1;
 while ($row = $result->fetch_assoc()):
