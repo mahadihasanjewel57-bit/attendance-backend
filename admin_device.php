@@ -32,6 +32,7 @@ $result = $conn->query("
     SELECT d.pyempcde, m.pyempnam, d.pydevice
     FROM emdevice d
     LEFT JOIN pyempmas m ON d.pyempcde = m.pyempcde
+    GROUP BY d.pyempcde
     ORDER BY d.pyempcde ASC
 ");
 ?>
