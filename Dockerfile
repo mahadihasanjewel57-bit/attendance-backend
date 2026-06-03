@@ -1,11 +1,15 @@
-FROM php:8.2-apache
+FROM php:8.2-fpm-alpine
 
 RUN docker-php-ext-install mysqli
 
-RUN a2dismod mpm_event mpm_worker && a2enmod mpm_prefork rewrite
+RUN apk add --no-cache nginx
 
 COPY . /var/www/html/
 
+COPY nginx.conf /etc/nginx/nginx.conf
+
 RUN chown -R www-data:www-data /var/www/html/
 
-EXPOSE 80
+EXPOSE 8080
+
+CMD sh -c "php-fpm -D && nginx -g 'daemon off;'"
