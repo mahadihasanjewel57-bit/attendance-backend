@@ -51,7 +51,7 @@ while ($row = $result->fetch_assoc()) {
         $row['LOGINDEX'],
         $row['NODINDEX'],
         $row['LOGDTIME'],
-        "'" . $row['EMPLCODE'],
+    "=" . '"' . $row['EMPLCODE'] . '"',
         $row['NODECODE'],
         $row['AUTHTYPE'],
         $row['AUTHRSLT'],
