@@ -207,18 +207,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excel_file'])) {
             <input type="file" name="excel_file" accept=".csv" required>
             <button type="submit" class="btn">📤 Upload & Import</button>
         </form>
-        <div class="info-box">
+       <div class="info-box">
             <strong>📋 CSV Format Guide:</strong>
-            <strong>For Employees:</strong>
-            Columns: <code>pyempcde, pyempnam, pyempost, designation</code><br>
-            Example: <code>0204201700923, Mr. Mahadi Hasan, Dhaka Branch, Officer</code><br><br>
-            <strong>For GPS Locations:</strong>
-            Columns: <code>pyempcde, latitude, longitude</code><br>
-            Example: <code>0204201700923, 23.7830818, 90.4170002</code><br><br>
-            <strong>Notes:</strong><br>
-            • First row = header (will be skipped)<br>
-            • Save Excel as CSV (Comma delimited)<br>
-            • Existing records will be updated
+
+            <strong>For Employees (pyempmas):</strong>
+            Run this query in your HR database to get the CSV data:<br><br>
+            <code>
+            select pyempcde, pyempnam,<br>
+            CASE WHEN B.PYCODDES LIKE '%SUB BRANCH%'<br>
+            THEN INITCAP(J.COSTDESC || ' (' || B.PYCODDES || ') '||', '||c.COSTDIST)<br>
+            ELSE CASE WHEN J.COSTDESC = 'HEAD OFFICE.'<br>
+            THEN B.PYSUMHAD||', Head Office, Dhaka'<br>
+            ELSE INITCAP(J.COSTDESC||', '||c.COSTDIST) END END AS "pyempost",<br>
+            e.pysumhad as "designation"<br>
+            from pyempmas a, pycodmas b, syjobmas c, pycodmas e, SYJOBMAS J<br>
+            where a.pydivcde = b.pyhdrcde||b.pysofcde<br>
+            and a.pydepcde=C.COSTCODE<br>
+            and a.pydescde=e.pyhdrcde||e.pysofcde<br>
+            AND J.COSTCODE = A.PYDEPCDE<br>
+            AND PYSTATUS in ('ST001','ST008','ST009','ST003','ST010')<br>
+            AND PYCATCDE in ('CT001','CT002')<br>
+            order by a.pydepcde, e.PYAMOUNT
+            </code><br><br>
+            Save result as CSV with columns in order:
+            <code>pyempcde, pyempnam, pyempost, designation</code><br><br>
+
+            <strong>For GPS Locations (pyemploc):</strong>
+            Run this query in your HR database to get the CSV data:<br><br>
+            <code>
+            select a.pyempcde employee_code, g.LATITUDE, g.LNGITUDE<br>
+            from pyempmas a left join pygeoloc g<br>
+            on g.PYOFCODE = case<br>
+            when a.pydivcde > 'DV400' then a.pydivcde<br>
+            when a.pydepcde <> '001' then a.pydepcde<br>
+            else a.pydivcde end
+            </code><br><br>
+            Save result as CSV with columns in order:
+            <code>pyempcde, latitude, longitude</code><br><br>
+
+            <strong>⚠️ Notes:</strong><br>
+            • First row must be a header row (will be skipped)<br>
+            • Save your query result as <strong>CSV (Comma delimited)</strong><br>
+            • Existing records will be <strong>updated</strong>, new ones will be <strong>inserted</strong><br>
+            • Employee ID must match exactly
         </div>
     </div>
 </div>
