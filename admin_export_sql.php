@@ -41,10 +41,9 @@ while ($row = $result->fetch_assoc()) {
 
     $compcode = $row['COMPCODE'] ?? '200';
     $emplcode = $row['EMPLCODE'];
-
     $logindex = $row['LOGINDEX'] !== null ? "'" . $row['LOGINDEX'] . "'" : "NULL";
     $nodindex = $row['NODINDEX'] !== null ? "'" . $row['NODINDEX'] . "'" : "NULL";
-    $nodecode = $row['NODECODE'] !== null ? $row['NODECODE'] : "NULL";
+    $nodecode = $row['NODECODE'] !== null ? "'" . $row['NODECODE'] . "'" : "NULL";
     $authtype = $row['AUTHTYPE'] !== null ? $row['AUTHTYPE'] : "NULL";
     $authrslt = $row['AUTHRSLT'] !== null ? $row['AUTHRSLT'] : "NULL";
     $openrslt = $row['OPENRSLT'] !== null ? $row['OPENRSLT'] : "NULL";
@@ -52,19 +51,32 @@ while ($row = $result->fetch_assoc()) {
     $checkflg = $row['CHECKFLG'] !== null ? $row['CHECKFLG'] : "NULL";
     $termname = $row['TERMNAME'] !== null ? "'" . $row['TERMNAME'] . "'" : "NULL";
     $brancode = $row['BRANCODE'] !== null ? "'" . $row['BRANCODE'] . "'" : "NULL";
-    $lgstatus = $row['LGSTATUS'] !== null ? "'" . $row['LGSTATUS'] . "'" : "NULL";
+    $lgstatus = $row['LGSTATUS'] !== null ? "'" . $row['LGSTATUS'] . "'" : "'N'";
     $remarkss = $row['REMARKSS'] !== null ? "'" . $row['REMARKSS'] . "'" : "NULL";
     $authcode = $row['AUTHCODE'] !== null ? "'" . $row['AUTHCODE'] . "'" : "NULL";
-    $pyacsenf = $row['PYACSENF'] !== null ? "'" . $row['PYACSENF'] . "'" : "NULL";
+    $pyacsenf = $row['PYACSENF'] !== null ? "'" . $row['PYACSENF'] . "'" : "'N'";
 
-    $rows[] = "('{$compcode}', {$logindex}, {$nodindex}, TO_DATE('{$logdtime}', 'DD/MM/YYYY HH24:MI:SS'), '{$emplcode}', {$authtype}, {$authrslt}, {$openrslt}, {$funcnumb}, {$funcnumb}, TO_DATE('{$slogtime}', 'DD/MM/YYYY HH24:MI:SS'), {$checkflg}, {$termname}, {$brancode}, '{$lgstatus}', {$remarkss}, {$authcode}, {$pyacsenf})";
+    $rows[] = "    INTO ORBHRM.PYACSLOG (
+        COMPCODE, LOGINDEX, NODINDEX, LOGDTIME, EMPLCODE,
+        AUTHTYPE, AUTHRSLT, OPENRSLT, FUNCNUMB, NODECODE,
+        SLOGTIME, CHECKFLG, TERMNAME, BRANCODE, LGSTATUS,
+        REMARKSS, AUTHCODE, PYACSENF
+    )
+    VALUES (
+        '{$compcode}', {$logindex}, {$nodindex},
+        TO_DATE('{$logdtime}', 'DD/MM/YYYY HH24:MI:SS'),
+        '{$emplcode}',
+        {$authtype}, {$authrslt}, {$openrslt}, {$funcnumb}, {$nodecode},
+        TO_DATE('{$slogtime}', 'DD/MM/YYYY HH24:MI:SS'),
+        {$checkflg}, {$termname}, {$brancode}, {$lgstatus},
+        {$remarkss}, {$authcode}, {$pyacsenf}
+    )";
 }
 
 if (count($rows) > 0) {
-    echo "INSERT INTO ORBHRM.PYACSLOG (COMPCODE, LOGINDEX, NODINDEX, LOGDTIME, EMPLCODE, AUTHTYPE, AUTHRSLT, OPENRSLT, FUNCNUMB, NODECODE, SLOGTIME, CHECKFLG, TERMNAME, BRANCODE, LGSTATUS, REMARKSS, AUTHCODE, PYACSENF)";
-    echo "\nVALUES ";
-    echo implode(",\n", $rows);
-    echo ";";
+    echo "INSERT ALL\n";
+    echo implode("\n", $rows);
+    echo "\nSELECT 1 FROM DUAL;";
 } else {
     echo "-- No records found for date: $filter_date";
 }
