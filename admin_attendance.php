@@ -90,18 +90,35 @@ $result = $stmt->get_result();
             outline: none;
         }
         .filter-card input:focus { border-color: #644BA4; }
-        .filter-card button {
+        .btn {
             padding: 9px 20px;
-            background: #644BA4;
-            color: white;
             border: none;
             border-radius: 8px;
             font-size: 14px;
             cursor: pointer;
             font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
         }
-        .filter-card button:hover { background: #5D0476; }
-        .section-title { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 12px; }
+        .btn-search {
+            background: #644BA4;
+            color: white;
+        }
+        .btn-search:hover { background: #5D0476; }
+        .btn-export {
+            background: #2e7d32;
+            color: white;
+        }
+        .btn-export:hover { background: #1b5e20; }
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
         table {
             width: 100%;
             background: white;
@@ -145,13 +162,18 @@ $result = $stmt->get_result();
                     placeholder="e.g. EMP001"
                     value="<?= htmlspecialchars($filter_emp) ?>">
             </div>
-            <button type="submit">🔍 Search</button>
+            <button type="submit" class="btn btn-search">🔍 Search</button>
+            <a href="admin_export.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>"
+               class="btn btn-export">
+               📥 Export Excel
+            </a>
         </div>
     </form>
 
     <div class="section-title">
-        📋 Attendance Report — <?= date("d M Y", strtotime($filter_date)) ?>
+        <span>📋 Attendance Report — <?= date("d M Y", strtotime($filter_date)) ?></span>
     </div>
+
     <table>
         <thead>
             <tr>
