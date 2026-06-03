@@ -64,14 +64,14 @@ while ($row = $result->fetch_assoc()) {
         <td>{$row['COMPCODE']}</td>
         <td>{$row['LOGINDEX']}</td>
         <td>{$row['NODINDEX']}</td>
-        <td>{$row['LOGDTIME']}</td>
-        <td>{$row['EMPLCODE']}</td>
+       <td style="mso-number-format:'\@'">{$row['LOGDTIME']}</td>
+       <td style="mso-number-format:'\@'">{$row['EMPLCODE']}</td>
         <td>{$row['NODECODE']}</td>
         <td>{$row['AUTHTYPE']}</td>
         <td>{$row['AUTHRSLT']}</td>
         <td>{$row['OPENRSLT']}</td>
         <td>{$row['FUNCNUMB']}</td>
-        <td>{$row['SLOGTIME']}</td>
+       <td style="mso-number-format:'\@'">{$row['SLOGTIME']}</td>
         <td>{$row['CHECKFLG']}</td>
         <td>{$row['TERMNAME']}</td>
         <td>{$row['BRANCODE']}</td>
