@@ -1,10 +1,12 @@
 <?php
 define('AUTH_TOKEN', 'ubpladmin2026secure');
-if (($_COOKIE['admin_token'] ?? '') !== AUTH_TOKEN) {
+$token = $_GET['token'] ?? '';
+if ($token !== AUTH_TOKEN) {
     header("Location: admin_login.php");
     exit;
 }
 include "db.php";
+$t = AUTH_TOKEN;
 
 $message  = '';
 $msg_type = '';
