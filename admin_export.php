@@ -65,8 +65,8 @@ while ($row = $result->fetch_assoc()) {
                 ? date("h:i A", strtotime($row['check_out']))
                 : "--:--";
     $status   = $row['punches'] > 1 ? "Complete" : "Checked In";
-    $emplcode = $row['EMPLCODE'];
-    $style    = 'mso-number-format:"\@"';
+   $style    = 'mso-number-format:"\@"';
+    $emplcode = "\t" . $row['EMPLCODE'];
     echo "<tr>
         <td>{$i}</td>
         <td style=\"$style\">$emplcode</td>
