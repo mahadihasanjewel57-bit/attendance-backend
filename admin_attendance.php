@@ -109,7 +109,12 @@ $result = $stmt->get_result();
             background: #2e7d32;
             color: white;
         }
-        .btn-export:hover { background: #1b5e20; }
+       .btn-export:hover { background: #1b5e20; }
+        .btn-raw {
+            background: #1565c0;
+            color: white;
+        }
+        .btn-raw:hover { background: #0d47a1; }
         .section-title {
             font-size: 16px;
             font-weight: bold;
@@ -163,9 +168,13 @@ $result = $stmt->get_result();
                     value="<?= htmlspecialchars($filter_emp) ?>">
             </div>
             <button type="submit" class="btn btn-search">🔍 Search</button>
-            <a href="admin_export.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>"
+           <a href="admin_export.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>"
                class="btn btn-export">
                📥 Export Excel
+            </a>
+            <a href="admin_export_raw.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>"
+               class="btn btn-raw">
+               📊 Export Raw Table
             </a>
         </div>
     </form>
