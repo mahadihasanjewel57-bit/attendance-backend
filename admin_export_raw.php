@@ -68,14 +68,14 @@ header("Expires: 0");
     <td class="num"><?= $row['COMPCODE'] ?></td>
     <td class="num"><?= $row['LOGINDEX'] ?></td>
     <td class="num"><?= $row['NODINDEX'] ?></td>
-    <td><?= $row['LOGDTIME'] ?></td>
+  <td><?= date("m/d/Y g:i:s A", strtotime($row['LOGDTIME'])) ?></td>
     <td><?= $row['EMPLCODE'] ?></td>
     <td class="num"><?= $row['NODECODE'] ?></td>
     <td class="num"><?= $row['AUTHTYPE'] ?></td>
     <td class="num"><?= $row['AUTHRSLT'] ?></td>
     <td class="num"><?= $row['OPENRSLT'] ?></td>
     <td class="num"><?= $row['FUNCNUMB'] ?></td>
-    <td><?= $row['SLOGTIME'] ?></td>
+  <td><?= date("m/d/Y g:i:s A", strtotime($row['SLOGTIME'])) ?></td>
     <td class="num"><?= $row['CHECKFLG'] ?></td>
     <td><?= $row['TERMNAME'] ?></td>
     <td><?= $row['BRANCODE'] ?></td>
