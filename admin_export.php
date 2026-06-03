@@ -28,14 +28,14 @@ if ($filter_post !== '') {
     $types   .= "s";
 }
 $sql = "
-    SELECT p.EMPLCODE, m.pyempnam,
+    SELECT p.EMPLCODE, m.pyempnam, m.pyempost,
         MIN(p.LOGDTIME) as check_in,
         MAX(p.LOGDTIME) as check_out,
         COUNT(*) as punches
     FROM pyacslog p
     LEFT JOIN pyempmas m ON p.EMPLCODE = m.pyempcde
     $where
-    GROUP BY p.EMPLCODE, m.pyempnam
+    GROUP BY p.EMPLCODE, m.pyempnam,  m.pyempost
     ORDER BY check_in ASC
 ";
 
@@ -64,6 +64,7 @@ header("Expires: 0");
     <th>No</th>
     <th>Employee ID</th>
     <th>Employee Name</th>
+    <th>Place of Posting</th>
     <th>Check In</th>
     <th>Check Out</th>
     <th>Total Punches</th>
@@ -83,6 +84,7 @@ while ($row = $result->fetch_assoc()):
     <td class="num"><?= $i++ ?></td>
     <td><?= $row['EMPLCODE'] ?></td>
     <td><?= $row['pyempnam'] ?></td>
+    <td><?= $row['pyempost'] ?></td>
     <td><?= $ci ?></td>
     <td><?= $co ?></td>
     <td class="num"><?= $row['punches'] ?></td>
