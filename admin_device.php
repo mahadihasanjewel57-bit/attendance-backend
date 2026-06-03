@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_emp'])) {
 
 // ── Fetch all devices ─────────────────────────────────────────────
 $result = $conn->query("
-    SELECT d.pyempcde, m.pyempnam, d.pydevice
+    SELECT d.pyempcde, MAX(m.pyempnam) as pyempnam, MAX(d.pydevice) as pydevice
     FROM emdevice d
     LEFT JOIN pyempmas m ON d.pyempcde = m.pyempcde
     GROUP BY d.pyempcde
