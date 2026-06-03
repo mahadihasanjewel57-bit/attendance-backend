@@ -63,7 +63,7 @@ while ($row = $result->fetch_assoc()) {
 
     fputcsv($out, [
         $i,
-        "'" . $row['EMPLCODE'],
+       "=" . '"' . $row['EMPLCODE'] . '"',
         $row['pyempnam'],
         $ci,
         $co,
