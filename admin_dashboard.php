@@ -94,11 +94,13 @@ $att = $conn->query("
 <body>
 <div class="navbar">
     <h1>🏦 Union Bank — Admin Panel</h1>
-    <div class="nav-links">
+   <div class="nav-links">
         <a href="admin_dashboard.php?token=<?= $t ?>">Dashboard</a>
         <a href="admin_attendance.php?token=<?= $t ?>">Attendance</a>
         <a href="admin_employees.php?token=<?= $t ?>">Employees</a>
+        <a href="admin_employees_edit.php?token=<?= $t ?>">Edit Employees</a>
         <a href="admin_device.php?token=<?= $t ?>">Devices</a>
+        <a href="admin_import.php?token=<?= $t ?>">Import</a>
         <a href="admin_login.php">Logout</a>
     </div>
 </div>
