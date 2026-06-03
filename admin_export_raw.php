@@ -27,60 +27,46 @@ $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $result = $stmt->get_result();
 
-// ── Download as Excel ─────────────────────────────────────────────
-$filename = "pyacslog_raw_" . $filter_date . ".xls";
-header("Content-Type: application/vnd.ms-excel");
+$filename = "pyacslog_raw_" . $filter_date . ".csv";
+header("Content-Type: text/csv");
 header("Content-Disposition: attachment; filename=\"$filename\"");
 header("Pragma: no-cache");
 header("Expires: 0");
 
-echo "<table border='1'>";
+$out = fopen("php://output", "w");
 
-// ── Header row — all columns ──────────────────────────────────────
-echo "<tr>
-    <th>COMPCODE</th>
-    <th>LOGINDEX</th>
-    <th>NODINDEX</th>
-    <th>LOGDTIME</th>
-    <th>EMPLCODE</th>
-    <th>NODECODE</th>
-    <th>AUTHTYPE</th>
-    <th>AUTHRSLT</th>
-    <th>OPENRSLT</th>
-    <th>FUNCNUMB</th>
-    <th>SLOGTIME</th>
-    <th>CHECKFLG</th>
-    <th>TERMNAME</th>
-    <th>BRANCODE</th>
-    <th>LGSTATUS</th>
-    <th>REMARKSS</th>
-    <th>AUTHCODE</th>
-    <th>PYACSENF</th>
-</tr>";
+// ── Header row ────────────────────────────────────────────────────
+fputcsv($out, [
+    'COMPCODE', 'LOGINDEX', 'NODINDEX', 'LOGDTIME',
+    'EMPLCODE', 'NODECODE', 'AUTHTYPE', 'AUTHRSLT',
+    'OPENRSLT', 'FUNCNUMB', 'SLOGTIME', 'CHECKFLG',
+    'TERMNAME', 'BRANCODE', 'LGSTATUS', 'REMARKSS',
+    'AUTHCODE', 'PYACSENF'
+]);
 
 // ── Data rows ─────────────────────────────────────────────────────
 while ($row = $result->fetch_assoc()) {
-    echo "<tr>
-        <td>{$row['COMPCODE']}</td>
-        <td>{$row['LOGINDEX']}</td>
-        <td>{$row['NODINDEX']}</td>
-       <td style="mso-number-format:'\@'">{$row['LOGDTIME']}</td>
-       <td style="mso-number-format:'\@'">{$row['EMPLCODE']}</td>
-        <td>{$row['NODECODE']}</td>
-        <td>{$row['AUTHTYPE']}</td>
-        <td>{$row['AUTHRSLT']}</td>
-        <td>{$row['OPENRSLT']}</td>
-        <td>{$row['FUNCNUMB']}</td>
-       <td style="mso-number-format:'\@'">{$row['SLOGTIME']}</td>
-        <td>{$row['CHECKFLG']}</td>
-        <td>{$row['TERMNAME']}</td>
-        <td>{$row['BRANCODE']}</td>
-        <td>{$row['LGSTATUS']}</td>
-        <td>{$row['REMARKSS']}</td>
-        <td>{$row['AUTHCODE']}</td>
-        <td>{$row['PYACSENF']}</td>
-    </tr>";
+    fputcsv($out, [
+        $row['COMPCODE'],
+        $row['LOGINDEX'],
+        $row['NODINDEX'],
+        $row['LOGDTIME'],
+        "'" . $row['EMPLCODE'],
+        $row['NODECODE'],
+        $row['AUTHTYPE'],
+        $row['AUTHRSLT'],
+        $row['OPENRSLT'],
+        $row['FUNCNUMB'],
+        $row['SLOGTIME'],
+        $row['CHECKFLG'],
+        $row['TERMNAME'],
+        $row['BRANCODE'],
+        $row['LGSTATUS'],
+        $row['REMARKSS'],
+        $row['AUTHCODE'],
+        $row['PYACSENF']
+    ]);
 }
 
-echo "</table>";
+fclose($out);
 ?>
