@@ -22,6 +22,11 @@ if ($filter_emp !== '') {
     $types   .= "s";
 }
 
+if ($filter_post !== '') {
+    $where   .= " AND m.pyempost = ?";
+    $params[] = $filter_post;
+    $types   .= "s";
+}
 $sql = "
     SELECT p.EMPLCODE, m.pyempnam,
         MIN(p.LOGDTIME) as check_in,
