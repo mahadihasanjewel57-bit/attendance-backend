@@ -219,7 +219,6 @@ while ($pr = $post_res->fetch_assoc()) {
                 <div>
                     <label>Employee ID (optional)</label>
                     <input type="text" name="emp"
-                        placeholder="e.g. 0204201700923"
                         value="<?= htmlspecialchars($filter_emp) ?>">
                 </div>
                 <button type="submit" class="btn btn-search">🔍 Search</button>
