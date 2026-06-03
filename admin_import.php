@@ -235,12 +235,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excel_file'])) {
             <strong>For GPS Locations (pyemploc):</strong>
             Run this query in your HR database to get the CSV data:<br><br>
             <code>
-            select a.pyempcde employee_code, g.LATITUDE, g.LNGITUDE<br>
-            from pyempmas a left join pygeoloc g<br>
-            on g.PYOFCODE = case<br>
-            when a.pydivcde > 'DV400' then a.pydivcde<br>
-            when a.pydepcde <> '001' then a.pydepcde<br>
-            else a.pydivcde end
+           select a.pyempcde , g.LATITUDE, g.LNGITUDE
+from pyempmas a left join pygeoloc g
+on g.PYOFCODE = case
+when a.pydivcde > 'DV400' then a.pydivcde
+when a.pydepcde <> '001' then a.pydepcde
+else a.pydivcde end
+where pyempcde in 
+    ( select pyempcde from pyempmas where  PYSTATUS in ('ST001','ST008','ST009','ST003','ST010')
+    AND  PYCATCDE in ('CT001','CT002'))
             </code><br><br>
             Save result as CSV with columns in order:
             <code>pyempcde, latitude, longitude</code><br><br>
