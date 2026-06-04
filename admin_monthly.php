@@ -270,8 +270,6 @@ while ($row = $att_result->fetch_assoc()) {
 <body>
 <div class="navbar">
     <h1>🏦 Union Bank — Admin Panel</h1>
-    <div class="navbar">
-    <h1>🏦 Union Bank — Admin Panel</h1>
     <div class="nav-links">
         <a href="admin_dashboard.php?token=<?= $t ?>">Dashboard</a>
         <a href="admin_attendance.php?token=<?= $t ?>">Attendance</a>
