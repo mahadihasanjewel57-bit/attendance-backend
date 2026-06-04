@@ -180,6 +180,7 @@ while ($row = $att_result->fetch_assoc()) {
         }
 
         /* Day-by-day table */
+        /* Day-by-day table */
         .scroll-wrap { overflow-x: auto; margin-bottom: 30px; }
         .detail-table {
             border-collapse: collapse;
@@ -187,24 +188,49 @@ while ($row = $att_result->fetch_assoc()) {
             background: white;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-            min-width: 100%;
+            width: auto;
+            table-layout: auto;
         }
         .detail-table th {
             background: #644BA4;
             color: white;
-            padding: 9px 10px;
+            padding: 8px 6px;
             text-align: center;
             font-size: 11px;
             border: 1px solid #7c5cbf;
+            white-space: nowrap;
         }
-        .detail-table th.emp-col { text-align: left; min-width: 160px; }
+        .detail-table th.emp-col {
+            text-align: left;
+            min-width: 40px;
+            max-width: 160px;
+            padding: 8px 10px;
+        }
         .detail-table td {
-            padding: 7px 10px;
+            padding: 6px 6px;
             border: 1px solid #f0f0f0;
             text-align: center;
             font-size: 11px;
             color: #333;
+            white-space: nowrap;
         }
+        .detail-table td.emp-col {
+            text-align: left;
+            font-weight: 500;
+            padding: 6px 10px;
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .detail-table td:first-child,
+        .detail-table th:first-child {
+            width: 30px;
+            min-width: 30px;
+            max-width: 30px;
+            padding: 6px 4px;
+            text-align: center;
+        }
+        .detail-table tr:hover td { background: #faf8ff; }
         .detail-table td.emp-col { text-align: left; font-weight: 500; }
         .detail-table tr:hover td { background: #faf8ff; }
       .present    { background: #1565c0; color: white; font-weight: bold; }
