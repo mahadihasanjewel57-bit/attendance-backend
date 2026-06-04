@@ -234,6 +234,8 @@ if ($search !== '') {
             border: 1px solid #7c5cbf;
         }
         .obs-table th.emp-col { text-align: left; min-width: 150px; }
+        .obs-table th:first-child,
+        .obs-table td:first-child { width: 30px; min-width: 30px; padding: 7px 6px; }
         .obs-table td {
             padding: 7px 8px;
             border: 1px solid #f0f0f0;
