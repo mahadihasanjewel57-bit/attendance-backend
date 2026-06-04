@@ -207,8 +207,8 @@ while ($row = $att_result->fetch_assoc()) {
         }
         .detail-table td.emp-col { text-align: left; font-weight: 500; }
         .detail-table tr:hover td { background: #faf8ff; }
-       .present    { background: #e8f5e9; color: #2e7d32; font-weight: bold; }
-        .half       { background: #fff3e0; color: #e65100; font-weight: bold; }
+      .present    { background: #1565c0; color: white; font-weight: bold; }
+        .half       { background: #c8e6c9; color: #2e7d32; font-weight: bold; }
         .absent     { background: #fdecea; color: #c0392b; }
         .weekend    { background: #f5f5f5; color: #aaa; }
 
