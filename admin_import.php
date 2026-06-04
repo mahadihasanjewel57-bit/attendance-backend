@@ -182,8 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['excel_file'])) {
         <a href="admin_attendance.php?token=<?= $t ?>">Attendance</a>
         <a href="admin_monthly.php?token=<?= $t ?>">Monthly</a>
         <a href="admin_observation.php?token=<?= $t ?>">Observation</a>
-        <a href="admin_employees.php?token=<?= $t ?>">Employees</a>
-        <a href="admin_employees_edit.php?token=<?= $t ?>">Edit Employees</a>
+         <a href="admin_employees_edit.php?token=<?= $t ?>">Edit Employees</a>
         <a href="admin_device.php?token=<?= $t ?>">Devices</a>
         <a href="admin_import.php?token=<?= $t ?>">Import</a>
         <a href="admin_login.php">Logout</a>
