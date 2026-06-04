@@ -241,12 +241,15 @@ if (isset($_GET['edit'])) {
     <div class="nav-links">
         <a href="admin_dashboard.php?token=<?= $t ?>">Dashboard</a>
         <a href="admin_attendance.php?token=<?= $t ?>">Attendance</a>
+             <a href="admin_observation.php?token=<?= $t ?>">Observation</a>
+          <a href="admin_monthly.php?token=<?= $t ?>">Monthly</a>
         <a href="admin_employees_edit.php?token=<?= $t ?>">Edit Employees</a>
         <a href="admin_device.php?token=<?= $t ?>">Devices</a>
         <a href="admin_import.php?token=<?= $t ?>">Import</a>
         <a href="admin_login.php">Logout</a>
     </div>
 </div>
+   
 <div class="container">
 
     <?php if ($message): ?>
