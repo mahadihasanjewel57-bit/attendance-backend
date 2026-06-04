@@ -225,13 +225,21 @@ if ($search !== '') {
             box-shadow: 0 2px 8px rgba(0,0,0,0.07);
             min-width: 100%;
         }
-        .obs-table th {
+       .obs-table th {
             background: #5D0476;
             color: white;
-            padding: 9px 10px;
+            padding: 9px 6px;
             text-align: center;
             font-size: 11px;
             border: 1px solid #7c5cbf;
+            white-space: nowrap;
+        }
+        .obs-table td {
+            padding: 7px 6px;
+            border: 1px solid #f0f0f0;
+            text-align: center;
+            font-size: 11px;
+            white-space: nowrap;
         }
         .obs-table th.emp-col { text-align: left; min-width: 150px; }
         .obs-table th:first-child,
