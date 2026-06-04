@@ -193,7 +193,6 @@ while ($pr = $post_res->fetch_assoc()) {
 </head>
 <body>
 <div class="navbar">
-  <div class="navbar">
     <h1>🏦 Union Bank — Admin Panel</h1>
     <div class="nav-links">
         <a href="admin_dashboard.php?token=<?= $t ?>">Dashboard</a>
