@@ -211,7 +211,6 @@ while ($pr = $post_res->fetch_assoc()) {
         <input type="hidden" name="token" value="<?= $t ?>">
         <div class="filter-card">
 
-            <!-- Row 1: Date + Employee ID -->
             <!-- Row 1: All filters in one line -->
             <div class="filter-row">
                 <div>
