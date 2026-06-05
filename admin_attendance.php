@@ -212,6 +212,7 @@ while ($pr = $post_res->fetch_assoc()) {
         <div class="filter-card">
 
             <!-- Row 1: Date + Employee ID -->
+            <!-- Row 1: All filters in one line -->
             <div class="filter-row">
                 <div>
                     <label>Date</label>
@@ -221,26 +222,22 @@ while ($pr = $post_res->fetch_assoc()) {
                 <div>
                     <label>Employee ID (optional)</label>
                     <input type="text" name="emp"
+                        placeholder="e.g. 0204201700923"
                         value="<?= htmlspecialchars($filter_emp) ?>">
                 </div>
-                <button type="submit" class="btn btn-search">🔍 Search</button>
-                <?php if ($filter_emp || $filter_post): ?>
-                    <a href="admin_attendance.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>"
-                       class="btn btn-clear">✖ Clear</a>
-                <?php endif; ?>
-            </div>
-
-            <!-- Row 2: Search by Posting Place -->
-            <div class="filter-row">
                 <div class="autocomplete-wrap">
-                    <label>Search by Posting Place (optional)</label>
+                    <label>Posting Place (optional)</label>
                     <input type="text" name="post" id="postInput"
                         placeholder="Type posting place..."
                         value="<?= htmlspecialchars($filter_post) ?>"
                         autocomplete="off">
                     <div class="autocomplete-list" id="autoList"></div>
                 </div>
-                <button type="submit" class="btn btn-search">🏢 Search by Post</button>
+                <button type="submit" class="btn btn-search">🔍 Search</button>
+                <?php if ($filter_emp || $filter_post): ?>
+                    <a href="admin_attendance.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>"
+                       class="btn btn-clear">✖ Clear</a>
+                <?php endif; ?>
             </div>
 
             <!-- Export buttons -->
