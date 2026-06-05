@@ -221,8 +221,7 @@ while ($pr = $post_res->fetch_assoc()) {
                 <div>
                     <label>Employee ID (optional)</label>
                     <input type="text" name="emp"
-                        placeholder="e.g. 0204201700923"
-                        value="<?= htmlspecialchars($filter_emp) ?>">
+                      value="<?= htmlspecialchars($filter_emp) ?>">
                 </div>
                 <div class="autocomplete-wrap">
                     <label>Posting Place (optional)</label>
