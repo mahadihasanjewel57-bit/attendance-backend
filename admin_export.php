@@ -23,9 +23,15 @@ if ($filter_emp !== '') {
 }
 
 if ($filter_post !== '') {
-    $where   .= " AND m.pyempost = ?";
-    $params[] = $filter_post;
-    $types   .= "s";
+    if ($filter_post === 'Head Office') {
+        $where   .= " AND m.pyempost LIKE ?";
+        $params[] = "%Head Office%";
+        $types   .= "s";
+    } else {
+        $where   .= " AND m.pyempost = ?";
+        $params[] = $filter_post;
+        $types   .= "s";
+    }
 }
 $sql = "
     SELECT p.EMPLCODE, m.pyempnam, m.pyempost,
