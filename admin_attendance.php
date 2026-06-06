@@ -26,9 +26,15 @@ if ($filter_emp !== '') {
 }
 
 if ($filter_post !== '') {
-    $where   .= " AND m.pyempost = ?";
-    $params[] = $filter_post;
-    $types   .= "s";
+    if ($filter_post === 'Head Office') {
+        $where   .= " AND m.pyempost LIKE ?";
+        $params[] = "%Head Office%";
+        $types   .= "s";
+    } else {
+        $where   .= " AND m.pyempost = ?";
+        $params[] = $filter_post;
+        $types   .= "s";
+    }
 }
 
 $sql = "
@@ -131,7 +137,9 @@ while ($pr = $post_res->fetch_assoc()) {
         .btn-raw     { background: #1565c0; color: white; }
         .btn-raw:hover     { background: #0d47a1; }
         .btn-sql     { background: #e65100; color: white; }
-        .btn-sql:hover     { background: #bf360c; }
+       .btn-sql:hover     { background: #bf360c; }
+        .btn-ho     { background: #5D0476; color: white; }
+        .btn-ho:hover      { background: #644BA4; }
         .btn-clear   { background: #888; color: white; }
         .btn-clear:hover   { background: #555; }
         .section-title {
@@ -239,7 +247,9 @@ while ($pr = $post_res->fetch_assoc()) {
             </div>
 
             <!-- Export buttons -->
-            <div class="filter-row">
+                     <div class="filter-row">
+                <a href="admin_attendance.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&post=Head+Office"
+                   class="btn btn-ho">🏦 Head Office Attendance</a>
                 <a href="admin_export.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>&post=<?= urlencode($filter_post) ?>"
                    class="btn btn-export">📥 Export Excel</a>
                 <a href="admin_export_raw.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>&post=<?= urlencode($filter_post) ?>"
