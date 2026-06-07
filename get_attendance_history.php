@@ -9,12 +9,12 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Allow-Headers: Content-Type");
 
-// ── DB config (Railway env vars) ─────────────────────────────────────
-$host = getenv("DB_HOST") ?: "localhost";
-$db   = getenv("DB_NAME") ?: "railway";
-$user = getenv("DB_USER") ?: "root";
-$pass = getenv("DB_PASS") ?: "";
-$port = getenv("DB_PORT") ?: 3306;
+// ── DB config — Railway's exact MySQL variable names ─────────────────
+$host = getenv("MYSQLHOST")     ?: "mysql.railway.internal";
+$db   = getenv("MYSQLDATABASE") ?: "railway";
+$user = getenv("MYSQLUSER")     ?: "root";
+$pass = getenv("MYSQLPASSWORD") ?: "";
+$port = getenv("MYSQLPORT")     ?: 3306;
 
 try {
     $pdo = new PDO(
@@ -23,7 +23,10 @@ try {
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
     );
 } catch (PDOException $e) {
-    echo json_encode(["status" => "error", "message" => "DB connection failed"]);
+    echo json_encode([
+        "status"  => "error",
+        "message" => "DB connection failed: " . $e->getMessage()
+    ]);
     exit;
 }
 
@@ -41,7 +44,6 @@ $today    = new DateTime();
 $fromDate = (clone $today)->modify("-29 days");
 
 // ── Query: first punch = check-in, last punch = check-out ────────────
-// LOGDTIME holds both date and time; EMPLCODE is the employee ID
 $stmt = $pdo->prepare("
     SELECT
         DATE(LOGDTIME)                             AS log_date,
@@ -85,11 +87,10 @@ for ($i = 0; $i < 30; $i++) {
             "status"    => "weekend",
         ];
     } elseif (isset($attendanceMap[$dateKey])) {
-        $row = $attendanceMap[$dateKey];
-        // If only one punch exists, check_in = check_out (same value)
+        $row      = $attendanceMap[$dateKey];
         $checkIn  = $row["check_in"]  ?: null;
         $checkOut = $row["check_out"] ?: null;
-        // If both are the same (single punch), leave check_out as null
+        // Single punch: don't repeat same time for check-out
         if ($checkIn === $checkOut) {
             $checkOut = null;
         }
