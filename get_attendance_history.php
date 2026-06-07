@@ -1,8 +1,5 @@
 <?php
-// get_attendance_history.php
-// Returns last 30 days attendance for a given employee
-// LOGDTIME = combined datetime column, EMPLCODE = employee ID
-// First punch of day = Check-In, Last punch = Check-Out
+// get_attendance_history.php  — mysqli version (fallback if PDO unavailable)
 
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
@@ -14,106 +11,82 @@ $host = getenv("MYSQLHOST")     ?: "mysql.railway.internal";
 $db   = getenv("MYSQLDATABASE") ?: "railway";
 $user = getenv("MYSQLUSER")     ?: "root";
 $pass = getenv("MYSQLPASSWORD") ?: "";
-$port = getenv("MYSQLPORT")     ?: 3306;
+$port = (int)(getenv("MYSQLPORT") ?: 3306);
 
-try {
-    $pdo = new PDO(
-        "mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4",
-        $user, $pass,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-    );
-} catch (PDOException $e) {
+// ── Connect via mysqli ────────────────────────────────────────────────
+$conn = new mysqli($host, $user, $pass, $db, $port);
+
+if ($conn->connect_error) {
     echo json_encode([
         "status"  => "error",
-        "message" => "DB connection failed: " . $e->getMessage()
+        "message" => "DB connection failed: " . $conn->connect_error,
     ]);
     exit;
 }
+$conn->set_charset("utf8mb4");
 
 // ── Input ─────────────────────────────────────────────────────────────
 $input = json_decode(file_get_contents("php://input"), true);
-$empId = trim($input["pyempcde"] ?? "");
+$empId = $conn->real_escape_string(trim($input["pyempcde"] ?? ""));
 
 if (empty($empId)) {
     echo json_encode(["status" => "error", "message" => "Employee ID required"]);
     exit;
 }
 
-// ── Date range: today back 30 days ────────────────────────────────────
+// ── Date range ────────────────────────────────────────────────────────
 $today    = new DateTime();
 $fromDate = (clone $today)->modify("-29 days");
+$toDate   = $today->format("Y-m-d");
+$fromStr  = $fromDate->format("Y-m-d");
 
-// ── Query: first punch = check-in, last punch = check-out ────────────
-$stmt = $pdo->prepare("
+// ── Query ─────────────────────────────────────────────────────────────
+$sql = "
     SELECT
         DATE(LOGDTIME)                             AS log_date,
         TIME_FORMAT(MIN(LOGDTIME), '%h:%i %p')     AS check_in,
         TIME_FORMAT(MAX(LOGDTIME), '%h:%i %p')     AS check_out
     FROM pyacslog
-    WHERE EMPLCODE = :empId
-      AND DATE(LOGDTIME) BETWEEN :fromDate AND :toDate
+    WHERE EMPLCODE = '$empId'
+      AND DATE(LOGDTIME) BETWEEN '$fromStr' AND '$toDate'
     GROUP BY DATE(LOGDTIME)
     ORDER BY log_date DESC
-");
+";
 
-$stmt->execute([
-    ":empId"    => $empId,
-    ":fromDate" => $fromDate->format("Y-m-d"),
-    ":toDate"   => $today->format("Y-m-d"),
-]);
+$result = $conn->query($sql);
 
-$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Index by date for quick lookup
-$attendanceMap = [];
-foreach ($rows as $row) {
-    $attendanceMap[$row["log_date"]] = $row;
+if (!$result) {
+    echo json_encode(["status" => "error", "message" => "Query failed: " . $conn->error]);
+    exit;
 }
 
-// ── Build full 30-day list (fills absent/weekend gaps) ────────────────
+$attendanceMap = [];
+while ($row = $result->fetch_assoc()) {
+    $attendanceMap[$row["log_date"]] = $row;
+}
+$conn->close();
+
+// ── Build 30-day list ─────────────────────────────────────────────────
 $records = [];
-$cursor  = clone $today;
+$cursor  = new DateTime();
 
 for ($i = 0; $i < 30; $i++) {
     $dateKey   = $cursor->format("Y-m-d");
-    $dayOfWeek = (int) $cursor->format("N"); // 1=Mon … 7=Sun
+    $dayOfWeek = (int) $cursor->format("N");
 
     if ($dayOfWeek === 5 || $dayOfWeek === 6) {
-        // Friday & Saturday = weekend (Bangladesh standard)
-        $records[] = [
-            "date"      => $dateKey,
-            "check_in"  => null,
-            "check_out" => null,
-            "status"    => "weekend",
-        ];
+        $records[] = ["date" => $dateKey, "check_in" => null, "check_out" => null, "status" => "weekend"];
     } elseif (isset($attendanceMap[$dateKey])) {
         $row      = $attendanceMap[$dateKey];
         $checkIn  = $row["check_in"]  ?: null;
         $checkOut = $row["check_out"] ?: null;
-        // Single punch: don't repeat same time for check-out
-        if ($checkIn === $checkOut) {
-            $checkOut = null;
-        }
-        $records[] = [
-            "date"      => $dateKey,
-            "check_in"  => $checkIn,
-            "check_out" => $checkOut,
-            "status"    => "present",
-        ];
+        if ($checkIn === $checkOut) $checkOut = null;
+        $records[] = ["date" => $dateKey, "check_in" => $checkIn, "check_out" => $checkOut, "status" => "present"];
     } else {
-        // Weekday with no record = absent
-        $records[] = [
-            "date"      => $dateKey,
-            "check_in"  => null,
-            "check_out" => null,
-            "status"    => "absent",
-        ];
+        $records[] = ["date" => $dateKey, "check_in" => null, "check_out" => null, "status" => "absent"];
     }
 
     $cursor->modify("-1 day");
 }
 
-echo json_encode([
-    "status"  => "success",
-    "records" => $records,
-]);
+echo json_encode(["status" => "success", "records" => $records]);
