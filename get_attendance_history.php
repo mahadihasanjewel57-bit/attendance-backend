@@ -6,16 +6,7 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Allow-Headers: Content-Type");
 
-// ── DB config — Railway's exact MySQL variable names ─────────────────
-$host = getenv("MYSQLHOST")     ?: "mysql.railway.internal";
-$db   = getenv("MYSQLDATABASE") ?: "railway";
-$user = getenv("MYSQLUSER")     ?: "root";
-$pass = getenv("MYSQLPASSWORD") ?: "";
-$port = (int)(getenv("MYSQLPORT") ?: 3306);
-
-// ── Connect via mysqli ────────────────────────────────────────────────
-$conn = new mysqli($host, $user, $pass, $db, $port);
-
+include "db.php";
 if ($conn->connect_error) {
     echo json_encode([
         "status"  => "error",
