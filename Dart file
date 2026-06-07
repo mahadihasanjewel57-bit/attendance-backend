@@ -1,0 +1,745 @@
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:convert';
+import 'dart:io' show Platform;
+import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// APP
+// ═══════════════════════════════════════════════════════════════════
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Union Bank Attendance',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF644BA4)),
+        useMaterial3: true,
+      ),
+      home: const LoginPage(),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// API CONFIG — update baseUrl with your Railway URL
+// ═══════════════════════════════════════════════════════════════════
+class ApiConfig {
+  static const String baseUrl =
+      "https://attendance-backend-production-d16c.up.railway.app";
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DEVICE ID
+// ═══════════════════════════════════════════════════════════════════
+Future<String> getDeviceId() async {
+  final prefs = await SharedPreferences.getInstance();
+  String? savedId = prefs.getString("device_unique_id");
+  if (savedId != null && savedId.isNotEmpty) return savedId;
+
+  String androidId = "UNKNOWN";
+  if (Platform.isAndroid) {
+    final android = await DeviceInfoPlugin().androidInfo;
+    androidId = android.id.isNotEmpty ? android.id : "ANDROID";
+  }
+
+  final deviceId = "${androidId}_${const Uuid().v4()}";
+  await prefs.setString("device_unique_id", deviceId);
+  return deviceId;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOGIN PAGE
+// ═══════════════════════════════════════════════════════════════════
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final TextEditingController _empCtrl = TextEditingController();
+  bool _loading = false;
+  String _statusMsg = '';
+
+  Future<void> _onLogin() async {
+    final empId = _empCtrl.text.trim();
+    if (empId.isEmpty) {
+      _setStatus("Please enter your Employee ID");
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _statusMsg = '';
+    });
+
+    try {
+      final deviceId = await getDeviceId();
+
+      final res = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/check_employee.php"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"pyempcde": empId, "pydevice": deviceId}),
+      );
+
+      if (!_isJson(res.body)) {
+        _setStatus("Server error — please try again");
+        return;
+      }
+
+      final data = jsonDecode(res.body);
+      final status = data['status'] ?? '';
+
+      if (!mounted) return;
+
+      switch (status) {
+        case 'matched':
+          _goToDashboard(empId, data['emp_name'] ?? '', deviceId);
+          break;
+
+        case 'new':
+          _showRegisterDialog(empId, data['emp_name'] ?? '', deviceId);
+          break;
+
+        case 'device_mismatch':
+          _setStatus(
+              data['message'] ?? "Device is not registered for this ID, Please contact HRD");
+          break;
+
+        default:
+          _setStatus(data['message'] ?? "An error occurred");
+      }
+    } catch (e) {
+      _setStatus("Connection error — check internet");
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showRegisterDialog(String empId, String empName, String deviceId) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text("Register Device"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Employee : $empName",
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text("ID           : $empId"),
+            const SizedBox(height: 12),
+            const Text(
+                "No device is registered for this ID.\nDo you want to register this device?"),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF644BA4),
+                foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(context);
+              await _registerDevice(empId, deviceId);
+            },
+            child: const Text("New Register"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _registerDevice(String empId, String deviceId) async {
+    setState(() => _loading = true);
+    try {
+      final res = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/register_device.php"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"pyempcde": empId, "pydevice": deviceId}),
+      );
+
+      final data = jsonDecode(res.body);
+      if (!mounted) return;
+
+      if (data['status'] == 'success') {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            title: const Row(children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 8),
+              Text("Device Registered"),
+            ]),
+            content: const Text(
+                "New Device registered successfully.\nPlease login again."),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF644BA4),
+                    foregroundColor: Colors.white),
+                onPressed: () {
+                  Navigator.pop(context);
+                  _empCtrl.clear();
+                  setState(() => _statusMsg = '');
+                },
+                child: const Text("Login Again"),
+              ),
+            ],
+          ),
+        );
+      } else {
+        _setStatus(data['message'] ?? "Registration failed");
+      }
+    } catch (e) {
+      _setStatus("Registration error — check internet");
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _goToDashboard(String empId, String empName, String deviceId) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DashboardPage(
+          empId: empId,
+          empName: empName,
+          deviceId: deviceId,
+        ),
+      ),
+    );
+  }
+
+  void _setStatus(String msg) {
+    if (mounted) setState(() {
+      _statusMsg = msg;
+      _loading = false;
+    });
+  }
+
+  bool _isJson(String s) {
+    final t = s.trim();
+    return t.startsWith('{') || t.startsWith('[');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3F0FA),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                "assets/images/logo.png",
+                width: 90,
+                height: 90,
+                fit: BoxFit.contain,
+              ),
+             // const Icon(Icons.account_balance,
+                //  size: 80, color: Color(0xFF644BA4)),
+              const SizedBox(height: 14),
+              const Text(
+                "UNION BANK PLC",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF644BA4),
+                ),
+              ),
+              const Text("Attendance System",
+                  style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 32),
+              TextField(
+                controller: _empCtrl,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _onLogin(),
+                decoration: const InputDecoration(
+                  labelText: "Employee ID",
+                  prefixIcon: Icon(Icons.badge_outlined),
+                  border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide:
+                    BorderSide(color: Color(0xFF644BA4), width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _onLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF644BA4),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: _loading
+                      ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2.5),
+                  )
+                      : const Text("LOGIN",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (_statusMsg.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _isError(_statusMsg)
+                        ? Colors.red.shade50
+                        : Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _isError(_statusMsg)
+                          ? Colors.red.shade200
+                          : Colors.blue.shade200,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isError(_statusMsg)
+                            ? Icons.error_outline
+                            : Icons.info_outline,
+                        color: _isError(_statusMsg)
+                            ? Colors.red
+                            : Colors.blue,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: Text(_statusMsg,
+                              style: const TextStyle(fontSize: 13))),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isError(String msg) {
+    final m = msg.toLowerCase();
+    return m.contains('error') ||
+        m.contains('invalid') ||
+        m.contains('contact') ||
+        m.contains('failed') ||
+        m.contains('mismatch');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD PAGE
+// ═══════════════════════════════════════════════════════════════════
+class DashboardPage extends StatefulWidget {
+  final String empId;
+  final String empName;
+  final String deviceId;
+
+  const DashboardPage({
+    super.key,
+    required this.empId,
+    required this.empName,
+    required this.deviceId,
+  });
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  String _statusMsg = '';
+  bool _loading = false;
+  Timer? _timer;
+
+  String _timeString = '';
+  String _dateString = '';
+  String _checkIn = '--:--';
+  String _checkOut = '--:--';
+
+  @override
+  void initState() {
+    super.initState();
+    _updateClock();
+    _timer =
+        Timer.periodic(const Duration(seconds: 1), (_) => _updateClock());
+    _fetchTodayAttendance();
+  }
+
+  void _updateClock() {
+    final now = DateTime.now();
+    setState(() {
+      _timeString = DateFormat("hh:mm:ss a").format(now);
+      _dateString = DateFormat("dd-MMM-yyyy").format(now);
+    });
+  }
+
+  Future<void> _fetchTodayAttendance() async {
+    try {
+      final res = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/get_attendance.php"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"pyempcde": widget.empId,}),
+      );
+      final data = jsonDecode(res.body);
+      if (mounted) {
+        setState(() {
+          _checkIn = data['check_in'] ?? '--:--';
+          _checkOut = data['check_out'] ?? '--:--';
+        });
+      }
+    } catch (_) {}
+  }
+
+  String _getButtonLabel() {
+    final h = DateTime.now().hour;
+    if (h >= 8 && h < 12) return "CHECK IN";
+    if (h >= 13 && h <= 22) return "CHECK OUT";
+    return "UNAVAILABLE";
+  }
+
+  bool _isAttendanceAllowed() {
+    final h = DateTime.now().hour;
+    return (h >= 8 && h < 12) || (h >= 13 && h <= 22);
+  }
+
+  Future<void> _markAttendance() async {
+    if (!_isAttendanceAllowed()) {
+      _setStatus(
+          "Attendance allowed:\n• Check In : 8:00 AM – 12:00 PM\n• Check Out: 1:00 PM – 10:00 PM");
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _statusMsg = 'Getting location...';
+    });
+
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        _setStatus("Location permission denied");
+        return;
+      }
+
+      final Position pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      final body = jsonEncode({
+        "pyempcde": widget.empId,
+        "pydevice": widget.deviceId,
+        "lat": pos.latitude,
+        "lng": pos.longitude,
+      });
+
+      print("=================================");
+      print("EMP ID: ${widget.empId}");
+      print("DEVICE: ${widget.deviceId}");
+      print("LAT: ${pos.latitude}");
+      print("LNG: ${pos.longitude}");
+      print("SENDING: $body");
+      print("URL: ${ApiConfig.baseUrl}/attendance.php");
+      print("=================================");
+
+      final res = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/attendance.php"),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: body,
+      );
+
+      print("STATUS CODE: ${res.statusCode}");
+      print("RESPONSE BODY:");
+      print(res.body);
+      print("=================================");
+
+      if (res.body.trim().isEmpty) {
+        _setStatus("Server returned empty response");
+        return;
+      }
+
+      final data = jsonDecode(res.body);
+
+      if (!mounted) return;
+
+      if (data['status'] == 'success') {
+        setState(() {
+          _statusMsg = data['message'] ?? 'Attendance saved';
+          _checkIn = data['check_in'] ?? _checkIn;
+          _checkOut = data['check_out'] ?? _checkOut;
+        });
+      } else {
+        _setStatus(data['message'] ?? 'Attendance failed');
+      }
+    } catch (e) {
+      print("EXCEPTION:");
+      print(e.toString());
+      _setStatus("Error: ${e.toString()}");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  void _setStatus(String msg) {
+    if (mounted) setState(() {
+      _statusMsg = msg;
+      _loading = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final btnLabel = _getButtonLabel();
+    final btnAllowed = _isAttendanceAllowed() && !_loading;
+    final isCheckIn = btnLabel == "CHECK IN";
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3F0FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF644BA4),
+        foregroundColor: Colors.white,
+        title: const Text("Attendance"),
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: "Logout",
+            onPressed: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginPage()),
+            ),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // ── Employee card ──────────────────────────────────────
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+              color: const Color(0xFF5D0476),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    const CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Color(0xFFB39DDB),
+                      child:
+                      Icon(Icons.person, size: 36, color: Colors.white),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.empName,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "ID: ${widget.empId}",
+                      style: const TextStyle(
+                          color: Color(0xFFCE93D8), fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(_dateString,
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 13)),
+                    Text(
+                      _timeString,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Check in/out summary ───────────────────────────────
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    vertical: 16, horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                        child: _attendanceTile(
+                            "Check In", _checkIn, Colors.green)),
+                    Container(
+                        width: 1,
+                        height: 50,
+                        color: Colors.grey.shade200),
+                    Expanded(
+                        child: _attendanceTile(
+                            "Check Out", _checkOut, Colors.orange)),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── Attendance button ──────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: btnAllowed ? _markAttendance : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: btnLabel == "UNAVAILABLE"
+                      ? Colors.grey
+                      : Colors.green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  elevation: 3,
+                ),
+                icon: _loading
+                    ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2.5))
+                    : Icon(isCheckIn
+                    ? Icons.login_rounded
+                    : Icons.logout_rounded),
+                label: Text(
+                  _loading ? "Please wait…" : btnLabel,
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Status message ─────────────────────────────────────
+            if (_statusMsg.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _statusMsg.contains('saved') ||
+                      _statusMsg.contains('success')
+                      ? Colors.green.shade50
+                      : Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: _statusMsg.contains('saved') ||
+                        _statusMsg.contains('success')
+                        ? Colors.green.shade200
+                        : Colors.red.shade200,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      _statusMsg.contains('saved') ||
+                          _statusMsg.contains('success')
+                          ? Icons.check_circle_outline
+                          : Icons.warning_amber_rounded,
+                      color: _statusMsg.contains('saved') ||
+                          _statusMsg.contains('success')
+                          ? Colors.green
+                          : Colors.red,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(_statusMsg,
+                            style: const TextStyle(fontSize: 13))),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _attendanceTile(String label, String time, Color color) {
+    return Column(
+      children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500)),
+        const SizedBox(height: 6),
+        Text(time,
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: time == '--:--' ? Colors.grey : color)),
+      ],
+    );
+  }
+}
