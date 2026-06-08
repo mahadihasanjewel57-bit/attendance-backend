@@ -107,11 +107,11 @@ $flag_label = [
 <table border="1" cellpadding="5" cellspacing="0" style="width:auto">
     <thead>
         <tr>
-            <th colspan="10" style="text-align:center; padding:15px;">
+            <th colspan="8" style="text-align:center; padding:15px;">
                 <div style="font-size:22px; font-weight:bold;">UNION BANK PLC.</div>
                 <div style="font-size:16px; margin-top:5px;">Daily Attendance Information</div>
                 <?php if ($filter_flag): ?>
-                <div style="font-size:13px; margin-top:4px; color:#c62828;">Filter: <?= htmlspecialchars($flag_label) ?></div>
+                <div style="font-size:13px; margin-top:4px; color:#c62828;">Status: <?= htmlspecialchars($flag_label) ?></div>
                 <?php endif; ?>
             </th>
         </tr>
@@ -122,8 +122,6 @@ $flag_label = [
             <th>Place of Posting</th>
             <th>Check In</th>
             <th>Check Out</th>
-            <th>Total Punches</th>
-            <th>Status</th>
             <th>Remarks</th>
             <th>Date</th>
         </tr>
@@ -147,8 +145,6 @@ foreach ($rows as $row):
     <td><?= htmlspecialchars($row['pyempost'] ?? '') ?></td>
     <td><?= $ci ?></td>
     <td><?= $co ?></td>
-    <td class="num"><?= $row['punches'] ?></td>
-    <td><?= $status ?></td>
     <td><?= $remarks ?></td>
     <td><?= $filter_date ?></td>
 </tr>
