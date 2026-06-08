@@ -324,7 +324,8 @@ if (isset($_GET['edit'])) {
                 <th>Designation</th>
                 <th>Latitude</th>
                 <th>Longitude</th>
-                <th>Actions</th>
+                <th>Edit</th>
+                <th>Delete</th>
             </tr>
         </thead>
         <tbody>
