@@ -1,5 +1,4 @@
 <?php
-// admin_export.php — Export attendance as Excel CSV with Late/Early Exit column
 define('AUTH_TOKEN', 'ubpladmin2026secure');
 $token = $_GET['token'] ?? '';
 if ($token !== AUTH_TOKEN) {
@@ -8,9 +7,8 @@ if ($token !== AUTH_TOKEN) {
 }
 include "db.php";
 date_default_timezone_set("Asia/Dhaka");
-
 $filter_date = $_GET['date'] ?? date("Y-m-d");
-$filter_emp  = trim($_GET['emp']  ?? '');
+$filter_emp  = trim($_GET['emp'] ?? '');
 $filter_post = trim($_GET['post'] ?? '');
 
 // ── Load attendance settings ──────────────────────────────────────
@@ -29,18 +27,20 @@ $early_grace = (int)($settings['early_grace_minutes'] ?? 10);
 $lateThreshold      = DateTime::createFromFormat('H:i', $entry_time)->modify("+{$late_grace} minutes");
 $earlyExitThreshold = DateTime::createFromFormat('H:i', $exit_time)->modify("-{$early_grace} minutes");
 
-// ── Build query ───────────────────────────────────────────────────
 $where  = "WHERE DATE(p.LOGDTIME) = ?";
 $params = [$filter_date];
 $types  = "s";
-
-if ($filter_emp !== '') { $where .= " AND p.EMPLCODE = ?"; $params[] = $filter_emp; $types .= "s"; }
-if ($filter_post !== '') {
-    if ($filter_post === 'Head Office') { $where .= " AND m.pyempost LIKE ?"; $params[] = "%Head Office%"; $types .= "s"; }
-    else { $where .= " AND m.pyempost = ?"; $params[] = $filter_post; $types .= "s"; }
+if ($filter_emp !== '') {
+    $where   .= " AND p.EMPLCODE = ?";
+    $params[] = $filter_emp;
+    $types   .= "s";
 }
-
-$stmt = $conn->prepare("
+if ($filter_post !== '') {
+    $where   .= " AND m.pyempost = ?";
+    $params[] = $filter_post;
+    $types   .= "s";
+}
+$sql = "
     SELECT p.EMPLCODE, m.pyempnam, m.pyempost,
         MIN(p.LOGDTIME) as check_in,
         MAX(p.LOGDTIME) as check_out,
@@ -49,58 +49,84 @@ $stmt = $conn->prepare("
     LEFT JOIN pyempmas m ON p.EMPLCODE = m.pyempcde
     $where
     GROUP BY p.EMPLCODE, m.pyempnam, m.pyempost
-    ORDER BY m.pyempost ASC, check_in ASC
-");
+    ORDER BY check_in ASC
+";
+$stmt = $conn->prepare($sql);
 $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $result = $stmt->get_result();
-
-// ── Output CSV ────────────────────────────────────────────────────
-$filename = "attendance_{$filter_date}.xls";
-header('Content-Type: text/xls; charset=utf-8');
+$filename = "attendance_" . $filter_date . ".xls";
+header("Content-Type: application/vnd.ms-excel; charset=utf-8");
 header("Content-Disposition: attachment; filename=\"$filename\"");
-
-$out = fopen('php://output', 'w');
-fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM for Excel
-
-// Header row
-fputcsv($out, [
-    '#', 'Employee ID', 'Name', 'Posting',
-    'Check In', 'Check Out', 'Punches', 'Status', 'Remarks',
-    'Entry Time Setting', 'Exit Time Setting'
-]);
-
+header("Pragma: no-cache");
+header("Expires: 0");
+?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<style>
+    td { mso-number-format: "\@"; }
+    .num { mso-number-format: "0"; }
+</style>
+</head>
+<body>
+<table border="1" cellpadding="5" cellspacing="0" style="width:auto">
+    <thead>
+        <tr>
+            <th colspan="10" style="text-align:center; padding:15px;">
+                <div style="font-size:22px; font-weight:bold;">
+                    UNION BANK PLC.
+                </div>
+                <div style="font-size:16px; margin-top:5px;">
+                    Daily Attendance Information
+                </div>
+            </th>
+        </tr>
+        <tr>
+            <th>No</th>
+            <th>Employee ID</th>
+            <th>Employee Name</th>
+            <th>Place of Posting</th>
+            <th>Check In</th>
+            <th>Check Out</th>
+            <th>Total Punches</th>
+            <th>Status</th>
+            <th>Remarks</th>
+            <th>Date</th>
+        </tr>
+    </thead>
+<?php
 $i = 1;
-while ($row = $result->fetch_assoc()) {
+while ($row = $result->fetch_assoc()):
     $ci     = date("h:i A", strtotime($row['check_in']));
-    $co     = $row['punches'] > 1 ? date("h:i A", strtotime($row['check_out'])) : "--:--";
+    $co     = $row['punches'] > 1
+                ? date("h:i A", strtotime($row['check_out']))
+                : "--:--";
     $status = $row['punches'] > 1 ? "Complete" : "Checked In";
 
-    // Flags
-    $flags = [];
+    // ── Compute remarks ───────────────────────────────────────────
+    $flags  = [];
     $ciTime = DateTime::createFromFormat('H:i', date('H:i', strtotime($row['check_in'])));
     if ($ciTime && $ciTime > $lateThreshold) $flags[] = 'Late';
-
     if ($row['punches'] > 1) {
         $coTime = DateTime::createFromFormat('H:i', date('H:i', strtotime($row['check_out'])));
         if ($coTime && $coTime < $earlyExitThreshold) $flags[] = 'Early Exit';
     }
-
     $remarks = empty($flags) ? 'On Time' : implode(' + ', $flags);
-
-    fputcsv($out, [
-        $i++,
-        $row['EMPLCODE'],
-        $row['pyempnam'] ?? 'N/A',
-        $row['pyempost'] ?? '',
-        $ci, $co,
-        $row['punches'],
-        $status,
-        $remarks,
-        $entry_time,
-        $exit_time,
-    ]);
-}
-
-fclose($out);
-exit;
+?>
+<tr>
+    <td class="num"><?= $i++ ?></td>
+    <td><?= $row['EMPLCODE'] ?></td>
+    <td><?= $row['pyempnam'] ?></td>
+    <td><?= $row['pyempost'] ?></td>
+    <td><?= $ci ?></td>
+    <td><?= $co ?></td>
+    <td class="num"><?= $row['punches'] ?></td>
+    <td><?= $status ?></td>
+    <td><?= $remarks ?></td>
+    <td><?= $filter_date ?></td>
+</tr>
+<?php endwhile; ?>
+</table>
+</body>
+</html>
