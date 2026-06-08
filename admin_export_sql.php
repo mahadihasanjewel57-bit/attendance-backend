@@ -52,7 +52,7 @@ while ($row = $result->fetch_assoc()) {
     $termname = $row['TERMNAME'] !== null ? "'" . $row['TERMNAME'] . "'" : "NULL";
     $brancode = $row['BRANCODE'] !== null ? "'" . $row['BRANCODE'] . "'" : "NULL";
     $lgstatus = $row['LGSTATUS'] !== null ? "'" . $row['LGSTATUS'] . "'" : "'N'";
-    $remarkss = $row['REMARKSS'] !== null ? "'" . $row['REMARKSS'] . "'" : "APP";
+    $remarkss = $row['REMARKSS'] !== null ? "'" . $row['REMARKSS'] . "'" : "'APPS;";
     $authcode = $row['AUTHCODE'] !== null ? "'" . $row['AUTHCODE'] . "'" : "NULL";
     $pyacsenf = $row['PYACSENF'] !== null ? "'" . $row['PYACSENF'] . "'" : "'N'";
 
