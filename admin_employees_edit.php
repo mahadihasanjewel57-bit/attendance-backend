@@ -340,15 +340,12 @@ if (isset($_GET['edit'])) {
                 <td><?= htmlspecialchars($row['designation'] ?? '') ?></td>
                 <td><?= htmlspecialchars($row['latitude'] ?? '') ?></td>
                 <td><?= htmlspecialchars($row['longitude'] ?? '') ?></td>
-                <td>
-                    <a href="admin_employees_edit.php?token=<?= $t ?>&edit=<?= urlencode($row['pyempcde']) ?>"
-                       class="btn btn-blue">✏️ Edit</a>
-                    <a href="admin_employees_edit.php?token=<?= $t ?>&delete=<?= urlencode($row['pyempcde']) ?>"
+                <td> href="admin_employees_edit.php?token=<?= $t ?>&edit=<?= urlencode($row['pyempcde']) ?>"
+                       class="btn btn-blue">✏️ Edit</td>
+                <td> href="admin_employees_edit.php?token=<?= $t ?>&delete=<?= urlencode($row['pyempcde']) ?>"
                        class="btn btn-red"
                        onclick="return confirm('Delete <?= htmlspecialchars($row['pyempnam']) ?>? This will also remove their device and location.')">
-                       🗑️ Delete
-                    </a>
-                </td>
+                       🗑️ Delete</td>      
             </tr>
         <?php endwhile; ?>
         </tbody>
