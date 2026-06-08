@@ -13,6 +13,7 @@ $t           = AUTH_TOKEN;
 $filter_date = $_GET['date'] ?? $today;
 $filter_emp  = trim($_GET['emp'] ?? '');
 $filter_post = trim($_GET['post'] ?? '');
+$filter_flag = trim($_GET['flag'] ?? ''); // NEW: 'late', 'early_exit', 'both', ''
 
 // ── Load attendance settings ──────────────────────────────────────
 $settings = [];
@@ -30,10 +31,8 @@ $exit_time   = $settings['exit_time']           ?? '17:00';
 $late_grace  = (int)($settings['late_grace_minutes']  ?? 10);
 $early_grace = (int)($settings['early_grace_minutes'] ?? 10);
 
-// Threshold DateTimes
 $lateThreshold      = DateTime::createFromFormat('H:i', $entry_time)->modify("+{$late_grace} minutes");
 $earlyExitThreshold = DateTime::createFromFormat('H:i', $exit_time)->modify("-{$early_grace} minutes");
-
 $lateLabel      = $lateThreshold->format("h:i A");
 $earlyExitLabel = $earlyExitThreshold->format("h:i A");
 
@@ -67,7 +66,6 @@ if ($filter_emp !== '') {
     $params[] = $filter_emp;
     $types   .= "s";
 }
-
 if ($filter_post !== '') {
     if ($filter_post === 'Head Office') {
         $where   .= " AND m.pyempost LIKE ?";
@@ -97,8 +95,8 @@ $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $result = $stmt->get_result();
 
-// ── Pre-fetch all rows so we can count flags ──────────────────────
-$rows = [];
+// ── Pre-fetch all rows + compute flags ───────────────────────────
+$all_rows   = [];
 $count_late = 0; $count_early = 0; $count_both = 0; $count_ok = 0;
 while ($row = $result->fetch_assoc()) {
     $co_raw = $row['punches'] > 1 ? $row['check_out'] : null;
@@ -108,10 +106,27 @@ while ($row = $result->fetch_assoc()) {
     elseif (in_array('late', $flags))       $count_late++;
     elseif (in_array('early_exit', $flags)) $count_early++;
     else $count_ok++;
-    $rows[] = $row;
+    $all_rows[] = $row;
 }
 
-// ── Fetch posting places for autocomplete ────────────────────────
+// ── Apply flag filter ─────────────────────────────────────────────
+$rows = [];
+foreach ($all_rows as $row) {
+    $flags = $row['flags'];
+    if ($filter_flag === 'late') {
+        if (in_array('late', $flags) && !in_array('early_exit', $flags)) $rows[] = $row;
+    } elseif ($filter_flag === 'early_exit') {
+        if (in_array('early_exit', $flags) && !in_array('late', $flags)) $rows[] = $row;
+    } elseif ($filter_flag === 'both') {
+        if (in_array('late', $flags) && in_array('early_exit', $flags)) $rows[] = $row;
+    } elseif ($filter_flag === 'ok') {
+        if (empty($flags)) $rows[] = $row;
+    } else {
+        $rows[] = $row; // no flag filter — show all
+    }
+}
+
+// ── Posting autocomplete ──────────────────────────────────────────
 $post_list = [];
 $post_res  = $conn->query("
     SELECT DISTINCT pyempost FROM pyempmas
@@ -119,6 +134,11 @@ $post_res  = $conn->query("
     ORDER BY pyempost ASC
 ");
 while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
+
+// ── Build base URL params for links ──────────────────────────────
+$base_params = "token={$t}&date=" . urlencode($filter_date)
+             . "&emp=" . urlencode($filter_emp)
+             . "&post=" . urlencode($filter_post);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -130,115 +150,101 @@ while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f3f0fa; }
 
-        /* ── Navbar ── */
         .navbar {
-            background: #644BA4;
-            color: white;
+            background: #644BA4; color: white;
             padding: 14px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: flex; justify-content: space-between; align-items: center;
         }
         .navbar h1 { font-size: 18px; }
         .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
         .navbar a {
-            color: white;
-            text-decoration: none;
-            font-size: 13px;
-            padding: 6px 12px;
-            border: 1px solid rgba(255,255,255,0.4);
-            border-radius: 6px;
-            transition: background 0.2s;
+            color: white; text-decoration: none; font-size: 13px;
+            padding: 6px 12px; border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 6px; transition: background 0.2s;
         }
         .navbar a:hover, .navbar a.active { background: rgba(255,255,255,0.2); }
 
         .container { padding: 24px; max-width: 1200px; margin: auto; }
 
-        /* ── Filter card ── */
         .filter-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-            margin-bottom: 20px;
+            background: white; border-radius: 12px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 20px;
         }
         .filter-row {
-            display: flex;
-            gap: 16px;
-            align-items: flex-end;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
+            display: flex; gap: 16px; align-items: flex-end;
+            flex-wrap: wrap; margin-bottom: 12px;
         }
         .filter-row:last-child { margin-bottom: 0; }
         .filter-row label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; }
         .filter-row input {
-            padding: 9px 14px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            outline: none;
-            min-width: 180px;
+            padding: 9px 14px; border: 1px solid #ddd;
+            border-radius: 8px; font-size: 14px; outline: none; min-width: 180px;
         }
         .filter-row input:focus { border-color: #644BA4; }
 
-        /* ── Settings hint bar ── */
         .settings-hint {
-            background: #f0ebff;
-            border: 1px solid #d0c5f0;
-            border-radius: 8px;
-            padding: 9px 14px;
-            font-size: 12px;
-            color: #4a148c;
-            display: flex;
-            align-items: center;
-            gap: 18px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
+            background: #f0ebff; border: 1px solid #d0c5f0;
+            border-radius: 8px; padding: 9px 14px; font-size: 12px;
+            color: #4a148c; display: flex; align-items: center;
+            gap: 18px; flex-wrap: wrap; margin-bottom: 20px;
         }
         .settings-hint strong { color: #5D0476; }
         .settings-hint a {
-            margin-left: auto;
-            font-size: 12px;
-            color: #644BA4;
-            text-decoration: none;
-            border: 1px solid #644BA4;
-            padding: 3px 10px;
-            border-radius: 6px;
+            margin-left: auto; font-size: 12px; color: #644BA4;
+            text-decoration: none; border: 1px solid #644BA4;
+            padding: 3px 10px; border-radius: 6px;
         }
         .settings-hint a:hover { background: #644BA4; color: white; }
 
-        /* ── Summary chips ── */
-        .summary-row {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
+        /* ── Summary chips — now clickable buttons ── */
+        .summary-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+
+        .chip-btn {
+            display: flex; align-items: center; gap: 7px;
+            padding: 8px 16px; border-radius: 20px;
+            font-size: 12px; font-weight: 600;
+            text-decoration: none; cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
         }
-        .chip {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            padding: 7px 14px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
+        .chip-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+        .chip-btn .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+        .chip-ok    { background: #e8f5e9; color: #2e7d32; }
+        .chip-late  { background: #fff3e0; color: #e65100; }
+        .chip-early { background: #fce4ec; color: #c62828; }
+        .chip-both  { background: #f3e5f5; color: #6a1b9a; }
+        .chip-all   { background: #ede7f6; color: #4527a0; }
+
+        /* Active/selected state */
+        .chip-btn.active-ok    { border-color: #2e7d32; box-shadow: 0 0 0 3px rgba(46,125,50,0.15); }
+        .chip-btn.active-late  { border-color: #e65100; box-shadow: 0 0 0 3px rgba(230,81,0,0.15); }
+        .chip-btn.active-early { border-color: #c62828; box-shadow: 0 0 0 3px rgba(198,40,40,0.15); }
+        .chip-btn.active-both  { border-color: #6a1b9a; box-shadow: 0 0 0 3px rgba(106,27,154,0.15); }
+        .chip-btn.active-all   { border-color: #4527a0; box-shadow: 0 0 0 3px rgba(69,39,160,0.15); }
+
+        /* ── Active filter banner ── */
+        .flag-banner {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 14px; border-radius: 8px;
+            font-size: 13px; font-weight: 600;
+            margin-bottom: 14px;
         }
-        .chip-ok     { background: #e8f5e9; color: #2e7d32; }
-        .chip-late   { background: #fff3e0; color: #e65100; }
-        .chip-early  { background: #fce4ec; color: #c62828; }
-        .chip-both   { background: #f3e5f5; color: #6a1b9a; }
-        .chip .dot   { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+        .flag-banner a {
+            margin-left: auto; font-size: 12px; font-weight: 400;
+            text-decoration: none; padding: 3px 10px;
+            border-radius: 6px; border: 1px solid currentColor;
+        }
+        .banner-late  { background: #fff3e0; color: #e65100; }
+        .banner-early { background: #fce4ec; color: #c62828; }
+        .banner-both  { background: #f3e5f5; color: #6a1b9a; }
+        .banner-ok    { background: #e8f5e9; color: #2e7d32; }
 
         /* ── Buttons ── */
         .btn {
-            padding: 9px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            font-weight: bold;
-            text-decoration: none;
-            display: inline-block;
+            padding: 9px 20px; border: none; border-radius: 8px;
+            font-size: 14px; cursor: pointer; font-weight: bold;
+            text-decoration: none; display: inline-block;
         }
         .btn-search { background: #644BA4; color: white; }
         .btn-search:hover { background: #5D0476; }
@@ -259,48 +265,45 @@ while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
             padding: 4px 10px; border-radius: 20px;
             font-size: 11px; font-weight: bold; margin-left: 8px;
         }
+        .flag-badge {
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: bold; margin-left: 8px;
+        }
+        .flag-badge-late  { background: #fff3e0; color: #e65100; }
+        .flag-badge-early { background: #fce4ec; color: #c62828; }
+        .flag-badge-both  { background: #f3e5f5; color: #6a1b9a; }
+        .flag-badge-ok    { background: #e8f5e9; color: #2e7d32; }
 
-        /* ── Table ── */
         table {
-            width: 100%;
-            background: white;
-            border-radius: 12px;
+            width: 100%; background: white; border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-            border-collapse: collapse;
-            overflow: hidden;
+            border-collapse: collapse; overflow: hidden;
         }
         th { background: #644BA4; color: white; padding: 12px 16px; text-align: left; font-size: 13px; }
         td { padding: 11px 16px; font-size: 13px; border-bottom: 1px solid #f0f0f0; color: #333; }
         tr:last-child td { border-bottom: none; }
         tr:hover td { background: #faf8ff; }
 
-        /* ── Status badges ── */
         .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
         .badge-green  { background: #e8f5e9; color: #2e7d32; }
         .badge-orange { background: #fff3e0; color: #e65100; }
 
-        /* ── Flag badges ── */
         .flags-cell { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
         .flag {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 700;
-            white-space: nowrap;
+            padding: 2px 8px; border-radius: 12px;
+            font-size: 11px; font-weight: 700; white-space: nowrap;
         }
         .flag-late       { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
         .flag-early-exit { background: #fce4ec; color: #c62828; border: 1px solid #f48fb1; }
         .flag-ok         { background: #e8f5e9; color: #2e7d32; font-size: 11px; }
 
-        /* ── Autocomplete ── */
         .autocomplete-wrap { position: relative; }
         .autocomplete-list {
             position: absolute; top: 100%; left: 0; right: 0;
             background: white; border: 1px solid #ddd;
             border-top: none; border-radius: 0 0 8px 8px;
             max-height: 200px; overflow-y: auto;
-            z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            display: none;
+            z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: none;
         }
         .autocomplete-list div { padding: 9px 14px; font-size: 13px; cursor: pointer; color: #333; }
         .autocomplete-list div:hover { background: #f3f0fa; color: #644BA4; }
@@ -326,6 +329,7 @@ while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
     <!-- ── Filter form ── -->
     <form method="GET" id="filterForm">
         <input type="hidden" name="token" value="<?= $t ?>">
+        <input type="hidden" name="flag"  value="<?= htmlspecialchars($filter_flag) ?>" id="flagInput">
         <div class="filter-card">
             <div class="filter-row">
                 <div>
@@ -344,8 +348,8 @@ while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
                         autocomplete="off">
                     <div class="autocomplete-list" id="autoList"></div>
                 </div>
-                <button type="submit" class="btn btn-search">🔍 Search</button>
-                <?php if ($filter_emp || $filter_post): ?>
+                <button type="submit" class="btn btn-search" onclick="document.getElementById('flagInput').value=''">🔍 Search</button>
+                <?php if ($filter_emp || $filter_post || $filter_flag): ?>
                     <a href="admin_attendance.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>"
                        class="btn btn-clear">✖ Clear</a>
                 <?php endif; ?>
@@ -353,11 +357,11 @@ while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
             <div class="filter-row">
                 <a href="admin_attendance.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&post=Head+Office"
                    class="btn btn-ho">🏦 Head Office Attendance</a>
-                <a href="admin_export.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>&post=<?= urlencode($filter_post) ?>"
+                <a href="admin_export.php?<?= $base_params ?>&flag=<?= urlencode($filter_flag) ?>"
                    class="btn btn-export">📥 Export Excel</a>
-                <a href="admin_export_raw.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>&post=<?= urlencode($filter_post) ?>"
+                <a href="admin_export_raw.php?<?= $base_params ?>&flag=<?= urlencode($filter_flag) ?>"
                    class="btn btn-raw">📊 Export Raw Table</a>
-                <a href="admin_export_sql.php?token=<?= $t ?>&date=<?= urlencode($filter_date) ?>&emp=<?= urlencode($filter_emp) ?>&post=<?= urlencode($filter_post) ?>"
+                <a href="admin_export_sql.php?<?= $base_params ?>&flag=<?= urlencode($filter_flag) ?>"
                    class="btn btn-sql">🗄️ Export SQL</a>
             </div>
         </div>
@@ -373,21 +377,59 @@ while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
         <a href="admin_settings.php?token=<?= $t ?>">⚙ Change Settings</a>
     </div>
 
-    <!-- ── Summary chips ── -->
-    <?php if (count($rows) > 0): ?>
+    <!-- ── Summary chips (clickable filter buttons) ── -->
+    <?php if (count($all_rows) > 0):
+        $u = "admin_attendance.php?{$base_params}";
+    ?>
     <div class="summary-row">
-        <div class="chip chip-ok">
-            <span class="dot"></span> On Time: <?= $count_ok ?>
-        </div>
-        <div class="chip chip-late">
-            <span class="dot"></span> Late: <?= $count_late ?>
-        </div>
-        <div class="chip chip-early">
-            <span class="dot"></span> Early Exit: <?= $count_early ?>
-        </div>
-        <div class="chip chip-both">
-            <span class="dot"></span> Late + Early Exit: <?= $count_both ?>
-        </div>
+        <a href="<?= $u ?>&flag="
+           class="chip-btn chip-all <?= $filter_flag === '' ? 'active-all' : '' ?>">
+            <span class="dot"></span>
+            All: <?= count($all_rows) ?>
+        </a>
+        <a href="<?= $u ?>&flag=ok"
+           class="chip-btn chip-ok <?= $filter_flag === 'ok' ? 'active-ok' : '' ?>">
+            <span class="dot"></span>
+            ✓ On Time: <?= $count_ok ?>
+        </a>
+        <a href="<?= $u ?>&flag=late"
+           class="chip-btn chip-late <?= $filter_flag === 'late' ? 'active-late' : '' ?>">
+            <span class="dot"></span>
+            ⏰ Late: <?= $count_late ?>
+        </a>
+        <a href="<?= $u ?>&flag=early_exit"
+           class="chip-btn chip-early <?= $filter_flag === 'early_exit' ? 'active-early' : '' ?>">
+            <span class="dot"></span>
+            🚪 Early Exit: <?= $count_early ?>
+        </a>
+        <a href="<?= $u ?>&flag=both"
+           class="chip-btn chip-both <?= $filter_flag === 'both' ? 'active-both' : '' ?>">
+            <span class="dot"></span>
+            ⚠ Late + Early Exit: <?= $count_both ?>
+        </a>
+    </div>
+    <?php endif; ?>
+
+    <!-- ── Active flag filter banner ── -->
+    <?php if ($filter_flag !== ''): ?>
+    <?php
+        $bannerClass = [
+            'late'       => 'banner-late',
+            'early_exit' => 'banner-early',
+            'both'       => 'banner-both',
+            'ok'         => 'banner-ok',
+        ][$filter_flag] ?? '';
+        $bannerLabel = [
+            'late'       => '⏰ Showing: Late arrivals only',
+            'early_exit' => '🚪 Showing: Early exits only',
+            'both'       => '⚠️ Showing: Late + Early Exit only',
+            'ok'         => '✓ Showing: On Time only',
+        ][$filter_flag] ?? '';
+    ?>
+    <div class="flag-banner <?= $bannerClass ?>">
+        <?= $bannerLabel ?>
+        — <?= count($rows) ?> employee(s)
+        <a href="admin_attendance.php?<?= $base_params ?>&flag=">✕ Show All</a>
     </div>
     <?php endif; ?>
 
@@ -396,6 +438,15 @@ while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
         📋 Attendance Report — <?= date("d M Y", strtotime($filter_date)) ?>
         <?php if ($filter_post): ?>
             <span class="post-badge">🏢 <?= htmlspecialchars($filter_post) ?></span>
+        <?php endif; ?>
+        <?php if ($filter_flag === 'late'): ?>
+            <span class="flag-badge flag-badge-late">⏰ Late</span>
+        <?php elseif ($filter_flag === 'early_exit'): ?>
+            <span class="flag-badge flag-badge-early">🚪 Early Exit</span>
+        <?php elseif ($filter_flag === 'both'): ?>
+            <span class="flag-badge flag-badge-both">⚠ Late + Early Exit</span>
+        <?php elseif ($filter_flag === 'ok'): ?>
+            <span class="flag-badge flag-badge-ok">✓ On Time</span>
         <?php endif; ?>
     </div>
 
@@ -418,7 +469,7 @@ while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
         <?php if (empty($rows)): ?>
             <tr>
                 <td colspan="9" style="text-align:center; color:#888; padding:24px;">
-                    No attendance found for this date
+                    No attendance found<?= $filter_flag ? " for this filter" : " for this date" ?>
                 </td>
             </tr>
         <?php endif; ?>
@@ -431,7 +482,6 @@ while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
             $badge  = $row['punches'] > 1 ? "badge-green" : "badge-orange";
             $flags  = $row['flags'];
 
-            // Row highlight for late/early
             $rowStyle = '';
             if (in_array('late', $flags) && in_array('early_exit', $flags))
                 $rowStyle = 'background:#fdf4ff;';
@@ -469,7 +519,6 @@ while ($pr = $post_res->fetch_assoc()) $post_list[] = $pr['pyempost'];
 </div>
 
 <script>
-// ── Autocomplete ──────────────────────────────────────────────────
 const postData  = <?= json_encode($post_list) ?>;
 const postInput = document.getElementById('postInput');
 const autoList  = document.getElementById('autoList');
@@ -478,10 +527,8 @@ postInput.addEventListener('input', function () {
     const val = this.value.toLowerCase().trim();
     autoList.innerHTML = '';
     if (val === '') { autoList.style.display = 'none'; return; }
-
     const matches = postData.filter(p => p.toLowerCase().includes(val));
     if (matches.length === 0) { autoList.style.display = 'none'; return; }
-
     matches.slice(0, 10).forEach(function (item) {
         const div = document.createElement('div');
         div.textContent = item;
@@ -494,7 +541,6 @@ postInput.addEventListener('input', function () {
     });
     autoList.style.display = 'block';
 });
-
 document.addEventListener('click', function (e) {
     if (!postInput.contains(e.target)) autoList.style.display = 'none';
 });
