@@ -8,8 +8,9 @@ if ($token !== AUTH_TOKEN) {
 include "db.php";
 date_default_timezone_set("Asia/Dhaka");
 $filter_date = $_GET['date'] ?? date("Y-m-d");
-$filter_emp  = trim($_GET['emp'] ?? '');
+$filter_emp  = trim($_GET['emp']  ?? '');
 $filter_post = trim($_GET['post'] ?? '');
+$filter_flag = trim($_GET['flag'] ?? '');
 
 // ── Load attendance settings ──────────────────────────────────────
 $settings = [];
@@ -27,20 +28,16 @@ $early_grace = (int)($settings['early_grace_minutes'] ?? 10);
 $lateThreshold      = DateTime::createFromFormat('H:i', $entry_time)->modify("+{$late_grace} minutes");
 $earlyExitThreshold = DateTime::createFromFormat('H:i', $exit_time)->modify("-{$early_grace} minutes");
 
+// ── Build query ───────────────────────────────────────────────────
 $where  = "WHERE DATE(p.LOGDTIME) = ?";
 $params = [$filter_date];
 $types  = "s";
-if ($filter_emp !== '') {
-    $where   .= " AND p.EMPLCODE = ?";
-    $params[] = $filter_emp;
-    $types   .= "s";
-}
+if ($filter_emp !== '') { $where .= " AND p.EMPLCODE = ?"; $params[] = $filter_emp; $types .= "s"; }
 if ($filter_post !== '') {
-    $where   .= " AND m.pyempost = ?";
-    $params[] = $filter_post;
-    $types   .= "s";
+    if ($filter_post === 'Head Office') { $where .= " AND m.pyempost LIKE ?"; $params[] = "%Head Office%"; $types .= "s"; }
+    else { $where .= " AND m.pyempost = ?"; $params[] = $filter_post; $types .= "s"; }
 }
-$sql = "
+$stmt = $conn->prepare("
     SELECT p.EMPLCODE, m.pyempnam, m.pyempost,
         MIN(p.LOGDTIME) as check_in,
         MAX(p.LOGDTIME) as check_out,
@@ -50,16 +47,53 @@ $sql = "
     $where
     GROUP BY p.EMPLCODE, m.pyempnam, m.pyempost
     ORDER BY check_in ASC
-";
-$stmt = $conn->prepare($sql);
+");
 $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $result = $stmt->get_result();
-$filename = "attendance_" . $filter_date . ".xls";
+
+// ── Pre-fetch + compute flags ─────────────────────────────────────
+$all_rows = [];
+while ($row = $result->fetch_assoc()) {
+    $co_raw = $row['punches'] > 1 ? $row['check_out'] : null;
+    $flags  = [];
+    $ciTime = DateTime::createFromFormat('H:i', date('H:i', strtotime($row['check_in'])));
+    if ($ciTime && $ciTime > $lateThreshold) $flags[] = 'late';
+    if ($co_raw) {
+        $coTime = DateTime::createFromFormat('H:i', date('H:i', strtotime($co_raw)));
+        if ($coTime && $coTime < $earlyExitThreshold) $flags[] = 'early_exit';
+    }
+    $row['flags'] = $flags;
+    $all_rows[] = $row;
+}
+
+// ── Apply flag filter ─────────────────────────────────────────────
+$rows = [];
+foreach ($all_rows as $row) {
+    $f = $row['flags'];
+    if ($filter_flag === 'late')       { if (in_array('late', $f) && !in_array('early_exit', $f)) $rows[] = $row; }
+    elseif ($filter_flag === 'early_exit') { if (in_array('early_exit', $f) && !in_array('late', $f)) $rows[] = $row; }
+    elseif ($filter_flag === 'both')   { if (in_array('late', $f) && in_array('early_exit', $f)) $rows[] = $row; }
+    elseif ($filter_flag === 'ok')     { if (empty($f)) $rows[] = $row; }
+    else                               { $rows[] = $row; }
+}
+
+// ── File name reflects active filter ─────────────────────────────
+$flag_suffix = $filter_flag ? "_{$filter_flag}" : '';
+$filename    = "attendance_{$filter_date}{$flag_suffix}.xls";
 header("Content-Type: application/vnd.ms-excel; charset=utf-8");
 header("Content-Disposition: attachment; filename=\"$filename\"");
 header("Pragma: no-cache");
 header("Expires: 0");
+
+// ── Report title label ────────────────────────────────────────────
+$flag_label = [
+    'late'       => 'Late Arrivals',
+    'early_exit' => 'Early Exits',
+    'both'       => 'Late + Early Exit',
+    'ok'         => 'On Time',
+    ''           => 'All Employees',
+][$filter_flag] ?? 'All Employees';
 ?>
 <html>
 <head>
@@ -74,12 +108,11 @@ header("Expires: 0");
     <thead>
         <tr>
             <th colspan="10" style="text-align:center; padding:15px;">
-                <div style="font-size:22px; font-weight:bold;">
-                    UNION BANK PLC.
-                </div>
-                <div style="font-size:16px; margin-top:5px;">
-                    Daily Attendance Information
-                </div>
+                <div style="font-size:22px; font-weight:bold;">UNION BANK PLC.</div>
+                <div style="font-size:16px; margin-top:5px;">Daily Attendance Information</div>
+                <?php if ($filter_flag): ?>
+                <div style="font-size:13px; margin-top:4px; color:#c62828;">Filter: <?= htmlspecialchars($flag_label) ?></div>
+                <?php endif; ?>
             </th>
         </tr>
         <tr>
@@ -97,28 +130,21 @@ header("Expires: 0");
     </thead>
 <?php
 $i = 1;
-while ($row = $result->fetch_assoc()):
+foreach ($rows as $row):
     $ci     = date("h:i A", strtotime($row['check_in']));
-    $co     = $row['punches'] > 1
-                ? date("h:i A", strtotime($row['check_out']))
-                : "--:--";
+    $co     = $row['punches'] > 1 ? date("h:i A", strtotime($row['check_out'])) : "--:--";
     $status = $row['punches'] > 1 ? "Complete" : "Checked In";
-
-    // ── Compute remarks ───────────────────────────────────────────
-    $flags  = [];
-    $ciTime = DateTime::createFromFormat('H:i', date('H:i', strtotime($row['check_in'])));
-    if ($ciTime && $ciTime > $lateThreshold) $flags[] = 'Late';
-    if ($row['punches'] > 1) {
-        $coTime = DateTime::createFromFormat('H:i', date('H:i', strtotime($row['check_out'])));
-        if ($coTime && $coTime < $earlyExitThreshold) $flags[] = 'Early Exit';
-    }
-    $remarks = empty($flags) ? 'On Time' : implode(' + ', $flags);
+    $flags  = $row['flags'];
+    $parts  = [];
+    if (in_array('late', $flags))       $parts[] = 'Late';
+    if (in_array('early_exit', $flags)) $parts[] = 'Early Exit';
+    $remarks = empty($parts) ? 'On Time' : implode(' + ', $parts);
 ?>
 <tr>
     <td class="num"><?= $i++ ?></td>
-    <td><?= $row['EMPLCODE'] ?></td>
-    <td><?= $row['pyempnam'] ?></td>
-    <td><?= $row['pyempost'] ?></td>
+    <td><?= htmlspecialchars($row['EMPLCODE']) ?></td>
+    <td><?= htmlspecialchars($row['pyempnam'] ?? '') ?></td>
+    <td><?= htmlspecialchars($row['pyempost'] ?? '') ?></td>
     <td><?= $ci ?></td>
     <td><?= $co ?></td>
     <td class="num"><?= $row['punches'] ?></td>
@@ -126,7 +152,7 @@ while ($row = $result->fetch_assoc()):
     <td><?= $remarks ?></td>
     <td><?= $filter_date ?></td>
 </tr>
-<?php endwhile; ?>
+<?php endforeach; ?>
 </table>
 </body>
 </html>
