@@ -56,8 +56,8 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 // ── Output CSV ────────────────────────────────────────────────────
-$filename = "attendance_{$filter_date}.csv";
-header('Content-Type: text/csv; charset=utf-8');
+$filename = "attendance_{$filter_date}.xls";
+header('Content-Type: text/xls; charset=utf-8');
 header("Content-Disposition: attachment; filename=\"$filename\"");
 
 $out = fopen('php://output', 'w');
