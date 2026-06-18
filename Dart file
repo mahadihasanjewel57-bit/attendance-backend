@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// API CONFIG — update baseUrl with your Railway URL
+// API CONFIG
 // ═══════════════════════════════════════════════════════════════════
 class ApiConfig {
   static const String baseUrl =
@@ -75,6 +75,21 @@ class _LoginPageState extends State<LoginPage> {
   bool _loading = false;
   String _statusMsg = '';
 
+  @override
+  void initState() {
+    super.initState();
+    _empCtrl.addListener(() => setState(() {})); // rebuild on text change
+    _loadSavedEmpId();
+  }
+
+  Future<void> _loadSavedEmpId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('saved_emp_id') ?? '';
+    if (saved.isNotEmpty) {
+      setState(() => _empCtrl.text = saved);
+    }
+  }
+
   Future<void> _onLogin() async {
     final empId = _empCtrl.text.trim();
     if (empId.isEmpty) {
@@ -108,6 +123,8 @@ class _LoginPageState extends State<LoginPage> {
 
       switch (status) {
         case 'matched':
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('saved_emp_id', empId);
           _goToDashboard(empId, data['emp_name'] ?? '', deviceId);
           break;
 
@@ -117,7 +134,8 @@ class _LoginPageState extends State<LoginPage> {
 
         case 'device_mismatch':
           _setStatus(
-              data['message'] ?? "Device is not registered for this ID, Please contact HRD");
+              data['message'] ??
+                  "Device is not registered for this ID, Please contact HRD");
           break;
 
         default:
@@ -181,6 +199,10 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (data['status'] == 'success') {
+        // Save the emp ID so it's pre-filled when they log in again
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('saved_emp_id', empId);
+
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -199,7 +221,6 @@ class _LoginPageState extends State<LoginPage> {
                     foregroundColor: Colors.white),
                 onPressed: () {
                   Navigator.pop(context);
-                  _empCtrl.clear();
                   setState(() => _statusMsg = '');
                 },
                 child: const Text("Login Again"),
@@ -243,6 +264,12 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
+  void dispose() {
+    _empCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F0FA),
@@ -258,8 +285,6 @@ class _LoginPageState extends State<LoginPage> {
                 height: 90,
                 fit: BoxFit.contain,
               ),
-             // const Icon(Icons.account_balance,
-                //  size: 80, color: Color(0xFF644BA4)),
               const SizedBox(height: 14),
               const Text(
                 "UNION BANK PLC",
@@ -277,14 +302,28 @@ class _LoginPageState extends State<LoginPage> {
                 keyboardType: TextInputType.text,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _onLogin(),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: "Employee ID",
-                  prefixIcon: Icon(Icons.badge_outlined),
-                  border: OutlineInputBorder(),
-                  focusedBorder: OutlineInputBorder(
+                  hintText: "Enter your Employee ID",
+                  prefixIcon: const Icon(Icons.badge_outlined),
+                  border: const OutlineInputBorder(),
+                  focusedBorder: const OutlineInputBorder(
                     borderSide:
                     BorderSide(color: Color(0xFF644BA4), width: 2),
                   ),
+                  // Clear button — only shown when there's text
+                  suffixIcon: _empCtrl.text.isNotEmpty
+                      ? IconButton(
+                    icon: const Icon(Icons.clear, size: 18),
+                    tooltip: "Clear saved ID",
+                    onPressed: () async {
+                      final prefs =
+                      await SharedPreferences.getInstance();
+                      await prefs.remove('saved_emp_id');
+                      setState(() => _empCtrl.clear());
+                    },
+                  )
+                      : null,
                 ),
               ),
               const SizedBox(height: 20),
@@ -308,8 +347,7 @@ class _LoginPageState extends State<LoginPage> {
                   )
                       : const Text("LOGIN",
                       style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold)),
+                          fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -414,7 +452,7 @@ class _DashboardPageState extends State<DashboardPage> {
       final res = await http.post(
         Uri.parse("${ApiConfig.baseUrl}/get_attendance.php"),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"pyempcde": widget.empId,}),
+        body: jsonEncode({"pyempcde": widget.empId}),
       );
       final data = jsonDecode(res.body);
       if (mounted) {
@@ -487,9 +525,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
       final res = await http.post(
         Uri.parse("${ApiConfig.baseUrl}/attendance.php"),
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: {"Content-Type": "application/json"},
         body: body,
       );
 
@@ -522,9 +558,7 @@ class _DashboardPageState extends State<DashboardPage> {
       _setStatus("Error: ${e.toString()}");
     } finally {
       if (mounted) {
-        setState(() {
-          _loading = false;
-        });
+        setState(() => _loading = false);
       }
     }
   }
@@ -584,8 +618,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     const CircleAvatar(
                       radius: 30,
                       backgroundColor: Color(0xFFB39DDB),
-                      child:
-                      Icon(Icons.person, size: 36, color: Colors.white),
+                      child: Icon(Icons.person, size: 36, color: Colors.white),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -632,9 +665,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         child: _attendanceTile(
                             "Check In", _checkIn, Colors.green)),
                     Container(
-                        width: 1,
-                        height: 50,
-                        color: Colors.grey.shade200),
+                        width: 1, height: 50, color: Colors.grey.shade200),
                     Expanded(
                         child: _attendanceTile(
                             "Check Out", _checkOut, Colors.orange)),
@@ -652,9 +683,8 @@ class _DashboardPageState extends State<DashboardPage> {
               child: ElevatedButton.icon(
                 onPressed: btnAllowed ? _markAttendance : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: btnLabel == "UNAVAILABLE"
-                      ? Colors.grey
-                      : Colors.green,
+                  backgroundColor:
+                  btnLabel == "UNAVAILABLE" ? Colors.grey : Colors.green,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -719,6 +749,38 @@ class _DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
               ),
+
+            const SizedBox(height: 24),
+
+            // ── Previous Attendance Data button ────────────────────
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AttendanceHistoryPage(
+                      empId: widget.empId,
+                      empName: widget.empName,
+                    ),
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF644BA4),
+                  side: const BorderSide(color: Color(0xFF644BA4), width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.calendar_month_rounded, size: 20),
+                label: const Text(
+                  "Previous Attendance Data",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -741,5 +803,538 @@ class _DashboardPageState extends State<DashboardPage> {
                 color: time == '--:--' ? Colors.grey : color)),
       ],
     );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ATTENDANCE RECORD MODEL
+// ═══════════════════════════════════════════════════════════════════
+class AttendanceRecord {
+  final String date;
+  final String? checkIn;
+  final String? checkOut;
+  final String status; // 'present', 'absent', 'weekend'
+
+  AttendanceRecord({
+    required this.date,
+    this.checkIn,
+    this.checkOut,
+    required this.status,
+  });
+
+  factory AttendanceRecord.fromJson(Map<String, dynamic> j) {
+    return AttendanceRecord(
+      date: j['date'] ?? '',
+      checkIn: j['check_in'],
+      checkOut: j['check_out'],
+      status: j['status'] ?? 'absent',
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ATTENDANCE HISTORY PAGE
+// ═══════════════════════════════════════════════════════════════════
+class AttendanceHistoryPage extends StatefulWidget {
+  final String empId;
+  final String empName;
+
+  const AttendanceHistoryPage({
+    super.key,
+    required this.empId,
+    required this.empName,
+  });
+
+  @override
+  State<AttendanceHistoryPage> createState() => _AttendanceHistoryPageState();
+}
+
+class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
+    with SingleTickerProviderStateMixin {
+  List<AttendanceRecord> _records = [];
+  bool _loading = true;
+  String _error = '';
+
+  late AnimationController _animCtrl;
+
+  int _presentCount = 0;
+  int _absentCount = 0;
+  int _weekendCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fetchHistory();
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchHistory() async {
+    setState(() {
+      _loading = true;
+      _error = '';
+    });
+
+    try {
+      final res = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/get_attendance_history.php"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"pyempcde": widget.empId}),
+      );
+
+      if (res.body.trim().isEmpty) {
+        setState(() {
+          _error = "Server returned empty response";
+          _loading = false;
+        });
+        return;
+      }
+
+      final data = jsonDecode(res.body);
+
+      if (data['status'] == 'success') {
+        final List raw = data['records'] ?? [];
+        final records =
+        raw.map((r) => AttendanceRecord.fromJson(r)).toList();
+
+        int present = 0, absent = 0, weekend = 0;
+        for (final r in records) {
+          if (r.status == 'present') present++;
+          if (r.status == 'absent') absent++;
+          if (r.status == 'weekend') weekend++;
+        }
+
+        setState(() {
+          _records = records;
+          _presentCount = present;
+          _absentCount = absent;
+          _weekendCount = weekend;
+          _loading = false;
+        });
+        _animCtrl.forward();
+      } else {
+        setState(() {
+          _error = data['message'] ?? "Failed to load history";
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = "Connection error — check internet";
+        _loading = false;
+      });
+    }
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'present':
+        return Colors.green;
+      case 'absent':
+        return Colors.red.shade400;
+      case 'weekend':
+        return Colors.blueGrey.shade300;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'present':
+        return Icons.check_circle_rounded;
+      case 'absent':
+        return Icons.cancel_rounded;
+      case 'weekend':
+        return Icons.weekend_rounded;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'present':
+        return 'Present';
+      case 'absent':
+        return 'Absent';
+      case 'weekend':
+        return 'Weekend';
+      default:
+        return status;
+    }
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3F0FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF644BA4),
+        foregroundColor: Colors.white,
+        title: const Text(
+          "Attendance History",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: "Refresh",
+            onPressed: _loading ? null : _fetchHistory,
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(
+        child: CircularProgressIndicator(color: Color(0xFF644BA4)),
+      )
+          : _error.isNotEmpty
+          ? _buildError()
+          : _buildContent(),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off_rounded,
+                size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              _error,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _fetchHistory,
+              icon: const Icon(Icons.refresh),
+              label: const Text("Retry"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF644BA4),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return Column(
+      children: [
+        _buildSummaryHeader(),
+        Expanded(
+          child: _records.isEmpty
+              ? Center(
+            child: Text(
+              "No attendance records found.",
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          )
+              : ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            itemCount: _records.length,
+            itemBuilder: (ctx, i) {
+              final delay = (i * 40).clamp(0, 400).toDouble();
+              return FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: _animCtrl,
+                  curve: Interval(
+                    (delay / 800).clamp(0.0, 1.0),
+                    1.0,
+                    curve: Curves.easeOut,
+                  ),
+                ),
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.15),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: _animCtrl,
+                      curve: Interval(
+                        (delay / 800).clamp(0.0, 1.0),
+                        1.0,
+                        curve: Curves.easeOut,
+                      ),
+                    ),
+                  ),
+                  child: _buildRecordCard(_records[i]),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Summary header ────────────────────────────────────────────────
+  Widget _buildSummaryHeader() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF5D0476), Color(0xFF644BA4)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF644BA4).withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.empName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Text(
+            "Last 30 Days Summary",
+            style: TextStyle(color: Color(0xFFCE93D8), fontSize: 12),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _summaryChip(Icons.check_circle_rounded, "$_presentCount",
+                  "Present", Colors.green.shade300),
+              const SizedBox(width: 10),
+              _summaryChip(Icons.cancel_rounded, "$_absentCount", "Absent",
+                  Colors.red.shade300),
+              const SizedBox(width: 10),
+              _summaryChip(Icons.weekend_rounded, "$_weekendCount", "Weekend",
+                  Colors.blueGrey.shade200),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryChip(
+      IconData icon, String count, String label, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 4),
+            Text(count,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            Text(label,
+                style: const TextStyle(
+                    color: Color(0xFFCE93D8), fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Record card ───────────────────────────────────────────────────
+  Widget _buildRecordCard(AttendanceRecord r) {
+    final color = _statusColor(r.status);
+    final icon = _statusIcon(r.status);
+    final label = _statusLabel(r.status);
+    final isWeekend = r.status == 'weekend';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border(
+          left: BorderSide(color: color, width: 4),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            // Date block
+            Container(
+              width: 48,
+              height: 52,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _dayNumber(r.date),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                      height: 1,
+                    ),
+                  ),
+                  Text(
+                    _monthShort(r.date),
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: color,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            // Day name + status label
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _dayName(r.date),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(icon, size: 13, color: color),
+                      const SizedBox(width: 4),
+                      Text(
+                        label,
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: color,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Check in / out times
+            if (!isWeekend)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _timeChip(
+                    Icons.login_rounded,
+                    r.checkIn ?? '--:--',
+                    Colors.green,
+                  ),
+                  const SizedBox(height: 4),
+                  _timeChip(
+                    Icons.logout_rounded,
+                    r.checkOut ?? '--:--',
+                    Colors.orange,
+                  ),
+                ],
+              )
+            else
+              Text(
+                "Day Off",
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blueGrey.shade300,
+                    fontStyle: FontStyle.italic),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _timeChip(IconData icon, String time, Color color) {
+    final isEmpty = time == '--:--' || time.isEmpty;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: isEmpty ? Colors.grey : color),
+        const SizedBox(width: 3),
+        Text(
+          time.isEmpty ? '--:--' : time,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isEmpty ? Colors.grey : color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _dayNumber(String date) {
+    try {
+      return DateFormat("dd").format(DateTime.parse(date));
+    } catch (_) {
+      return '--';
+    }
+    
+  }
+
+  String _monthShort(String date) {
+    try {
+      return DateFormat("MMM").format(DateTime.parse(date)).toUpperCase();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String _dayName(String date) {
+    try {
+      return DateFormat("EEEE").format(DateTime.parse(date));
+    } catch (_) {
+      return date;
+    }
   }
 }
