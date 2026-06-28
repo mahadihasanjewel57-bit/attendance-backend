@@ -108,7 +108,7 @@ $a       = sin($dLat / 2) * sin($dLat / 2)
          * sin($dLng / 2) * sin($dLng / 2);
 $distance = $earthR * 2 * atan2(sqrt($a), sqrt(1 - $a));
 
-if ($distance > 50) {
+if ($distance > 60) {
     echo json_encode([
         "status"  => "error",
         "message" => "You are outside the allowed area (" . round($distance) . " m from office)",
