@@ -117,7 +117,11 @@ if ($distance > 50) {
 }
 
 // ── 30 minute block ───────────────────────────────────────────────
-$time  = date("Y-m-d H:i:s");
+// Use the click time sent from the app if provided, otherwise fall back to server time
+$click_time = trim($data['click_time'] ?? '');
+$time = (!empty($click_time) && strtotime($click_time)) 
+        ? date("Y-m-d H:i:s", strtotime($click_time)) 
+        : date("Y-m-d H:i:s");
 $today = date("Y-m-d");
 
 $blockStmt = $conn->prepare("
