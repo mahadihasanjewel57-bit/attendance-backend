@@ -78,7 +78,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    _empCtrl.addListener(() => setState(() {})); // rebuild on text change
+    _empCtrl.addListener(() => setState(() {}));
     _loadSavedEmpId();
   }
 
@@ -199,7 +199,6 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (data['status'] == 'success') {
-        // Save the emp ID so it's pre-filled when they log in again
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('saved_emp_id', empId);
 
@@ -272,128 +271,127 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage("assets/images/login_bg.png"),
-              fit: BoxFit.cover,
-            ),
-          ),
-          child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                "assets/images/logo.png",
-                width: 90,
-                height: 90,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                "UNION BANK PLC",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF644BA4),
-                ),
-              ),
-              const Text("Attendance System",
-                  style: TextStyle(color: Colors.black)),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _empCtrl,
-                keyboardType: TextInputType.text,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _onLogin(),
-                decoration: InputDecoration(
-                  labelText: "Employee ID",
-                  hintText: "Enter your Employee ID",
-                  prefixIcon: const Icon(Icons.badge_outlined),
-                  border: const OutlineInputBorder(),
-                  focusedBorder: const OutlineInputBorder(
-                    borderSide:
-                    BorderSide(color: Color(0xFF644BA4), width: 2),
-                  ),
-                  // Clear button — only shown when there's text
-                  suffixIcon: _empCtrl.text.isNotEmpty
-                      ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    tooltip: "Clear saved ID",
-                    onPressed: () async {
-                      final prefs =
-                      await SharedPreferences.getInstance();
-                      await prefs.remove('saved_emp_id');
-                      setState(() => _empCtrl.clear());
-                    },
-                  )
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _onLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF644BA4),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5),
-                  )
-                      : const Text("LOGIN",
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_statusMsg.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _isError(_statusMsg)
-                        ? Colors.red.shade50
-                        : Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _isError(_statusMsg)
-                          ? Colors.red.shade200
-                          : Colors.blue.shade200,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _isError(_statusMsg)
-                            ? Icons.error_outline
-                            : Icons.info_outline,
-                        color: _isError(_statusMsg)
-                            ? Colors.red
-                            : Colors.blue,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                          child: Text(_statusMsg,
-                              style: const TextStyle(fontSize: 13))),
-                    ],
-                  ),
-                ),
-            ],
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage("assets/images/login_bg.png"),
+            fit: BoxFit.cover,
           ),
         ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  "assets/images/logo.png",
+                  width: 90,
+                  height: 90,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  "UNION BANK PLC",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF644BA4),
+                  ),
+                ),
+                const Text("Attendance System",
+                    style: TextStyle(color: Colors.black)),
+                const SizedBox(height: 32),
+                TextField(
+                  controller: _empCtrl,
+                  keyboardType: TextInputType.text,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _onLogin(),
+                  decoration: InputDecoration(
+                    labelText: "Employee ID",
+                    hintText: "Enter your Employee ID",
+                    prefixIcon: const Icon(Icons.badge_outlined),
+                    border: const OutlineInputBorder(),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide:
+                      BorderSide(color: Color(0xFF644BA4), width: 2),
+                    ),
+                    suffixIcon: _empCtrl.text.isNotEmpty
+                        ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      tooltip: "Clear saved ID",
+                      onPressed: () async {
+                        final prefs =
+                        await SharedPreferences.getInstance();
+                        await prefs.remove('saved_emp_id');
+                        setState(() => _empCtrl.clear());
+                      },
+                    )
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _onLogin,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF644BA4),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: _loading
+                        ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5),
+                    )
+                        : const Text("LOGIN",
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (_statusMsg.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _isError(_statusMsg)
+                          ? Colors.red.shade50
+                          : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _isError(_statusMsg)
+                            ? Colors.red.shade200
+                            : Colors.blue.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _isError(_statusMsg)
+                              ? Icons.error_outline
+                              : Icons.info_outline,
+                          color: _isError(_statusMsg)
+                              ? Colors.red
+                              : Colors.blue,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(_statusMsg,
+                                style: const TextStyle(fontSize: 13))),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
+        ),
       ),
     );
   }
@@ -434,7 +432,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   String _timeString = '';
   String _dateString = '';
-  String _checkIn = '--:--';
+  String _checkIn  = '--:--';
   String _checkOut = '--:--';
 
   @override
@@ -464,7 +462,7 @@ class _DashboardPageState extends State<DashboardPage> {
       final data = jsonDecode(res.body);
       if (mounted) {
         setState(() {
-          _checkIn = data['check_in'] ?? '--:--';
+          _checkIn  = data['check_in']  ?? '--:--';
           _checkOut = data['check_out'] ?? '--:--';
         });
       }
@@ -490,29 +488,36 @@ class _DashboardPageState extends State<DashboardPage> {
       return;
     }
 
+    // ── ⏱️ Capture button-click time IMMEDIATELY ──────────────────
+    // This is the time we will save as attendance time regardless of
+    // how long GPS takes to warm up.
+    final DateTime clickTime = DateTime.now();
+    final String clickTimeStr =
+    DateFormat("yyyy-MM-dd HH:mm:ss").format(clickTime);
+
     setState(() {
-      _loading = true;
-      _statusMsg = 'Getting location...';
+      _loading    = true;
+      _statusMsg  = 'Getting location...';
     });
 
     try {
+      // ── Location permission ──────────────────────────────────────
       LocationPermission perm = await Geolocator.checkPermission();
-
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
       }
-
       if (perm == LocationPermission.denied ||
           perm == LocationPermission.deniedForever) {
         _setStatus("Location permission denied");
         return;
       }
 
-      // ── Wait for a stable GPS fix (retry up to 5 times) ───────────
-      // Fixes the "out of allocated location" issue that happens on
-      // the first 3-4 attempts in the morning while GPS is warming up.
+      // ── GPS retry loop (up to 5 attempts for accuracy) ───────────
+      // GPS takes time to warm up in the morning. We retry until we
+      // get a fix within 50m. The ATTENDANCE TIME is always the
+      // button-click time captured above — NOT the GPS resolution time.
       Position? pos;
-      int attempts = 0;
+      int attempts    = 0;
       const maxAttempts = 5;
 
       while (attempts < maxAttempts) {
@@ -528,8 +533,8 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           );
 
-          // Accept fix only if accuracy is within 50 metres
           if (candidate.accuracy <= 50.0) {
+            // Good fix — accept it
             pos = candidate;
             break;
           } else if (attempts < maxAttempts) {
@@ -537,7 +542,7 @@ class _DashboardPageState extends State<DashboardPage> {
             'Improving GPS accuracy… (attempt $attempts/$maxAttempts)');
             await Future.delayed(const Duration(seconds: 3));
           } else {
-            // Last attempt — use whatever we got rather than fail outright
+            // Last attempt — use best available rather than fail
             pos = candidate;
           }
         } catch (e) {
@@ -549,28 +554,28 @@ class _DashboardPageState extends State<DashboardPage> {
 
       if (pos == null) {
         _setStatus(
-            "Could not get accurate GPS signal. Please try again in an open area.");
+            "Could not get GPS signal. Please try again in an open area.");
         return;
       }
 
+      // ── Submit with CLICK time, not GPS resolution time ───────────
+      setState(() => _statusMsg = 'Submitting attendance…');
+
       final body = jsonEncode({
-        "pyempcde": widget.empId,
-        "pydevice": widget.deviceId,
-        "lat": pos.latitude,
-        "lng": pos.longitude,
+        "pyempcde":   widget.empId,
+        "pydevice":   widget.deviceId,
+        "lat":        pos.latitude,
+        "lng":        pos.longitude,
+        "click_time": clickTimeStr,   // ← button-press time
       });
 
-      print("=================================");
-      print("EMP ID: ${widget.empId}");
-      print("DEVICE: ${widget.deviceId}");
-      print("LAT: ${pos.latitude}");
-      print("LNG: ${pos.longitude}");
-      print("ACCURACY: ${pos.accuracy}");
-      print("SENDING: $body");
-      print("URL: ${ApiConfig.baseUrl}/attendance.php");
-      print("=================================");
-
-      setState(() => _statusMsg = 'Submitting attendance…');
+      debugPrint("=================================");
+      debugPrint("EMP ID    : ${widget.empId}");
+      debugPrint("CLICK TIME: $clickTimeStr");
+      debugPrint("LAT       : ${pos.latitude}");
+      debugPrint("LNG       : ${pos.longitude}");
+      debugPrint("ACCURACY  : ${pos.accuracy}m");
+      debugPrint("=================================");
 
       final res = await http.post(
         Uri.parse("${ApiConfig.baseUrl}/attendance.php"),
@@ -578,10 +583,8 @@ class _DashboardPageState extends State<DashboardPage> {
         body: body,
       );
 
-      print("STATUS CODE: ${res.statusCode}");
-      print("RESPONSE BODY:");
-      print(res.body);
-      print("=================================");
+      debugPrint("STATUS CODE: ${res.statusCode}");
+      debugPrint("RESPONSE  : ${res.body}");
 
       if (res.body.trim().isEmpty) {
         _setStatus("Server returned empty response");
@@ -589,33 +592,29 @@ class _DashboardPageState extends State<DashboardPage> {
       }
 
       final data = jsonDecode(res.body);
-
       if (!mounted) return;
 
       if (data['status'] == 'success') {
         setState(() {
           _statusMsg = data['message'] ?? 'Attendance saved';
-          _checkIn = data['check_in'] ?? _checkIn;
-          _checkOut = data['check_out'] ?? _checkOut;
+          _checkIn   = data['check_in']  ?? _checkIn;
+          _checkOut  = data['check_out'] ?? _checkOut;
         });
       } else {
         _setStatus(data['message'] ?? 'Attendance failed');
       }
     } catch (e) {
-      print("EXCEPTION:");
-      print(e.toString());
+      debugPrint("EXCEPTION: $e");
       _setStatus("Error: ${e.toString()}");
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   void _setStatus(String msg) {
     if (mounted) setState(() {
       _statusMsg = msg;
-      _loading = false;
+      _loading   = false;
     });
   }
 
@@ -627,9 +626,9 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final btnLabel = _getButtonLabel();
+    final btnLabel   = _getButtonLabel();
     final btnAllowed = _isAttendanceAllowed() && !_loading;
-    final isCheckIn = btnLabel == "CHECK IN";
+    final isCheckIn  = btnLabel == "CHECK IN";
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F0FA),
@@ -667,7 +666,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     const CircleAvatar(
                       radius: 30,
                       backgroundColor: Color(0xFFB39DDB),
-                      child: Icon(Icons.person, size: 36, color: Colors.white),
+                      child:
+                      Icon(Icons.person, size: 36, color: Colors.white),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -714,7 +714,9 @@ class _DashboardPageState extends State<DashboardPage> {
                         child: _attendanceTile(
                             "Check In", _checkIn, Colors.green)),
                     Container(
-                        width: 1, height: 50, color: Colors.grey.shade200),
+                        width: 1,
+                        height: 50,
+                        color: Colors.grey.shade200),
                     Expanded(
                         child: _attendanceTile(
                             "Check Out", _checkOut, Colors.orange)),
@@ -810,21 +812,23 @@ class _DashboardPageState extends State<DashboardPage> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => AttendanceHistoryPage(
-                      empId: widget.empId,
+                      empId:   widget.empId,
                       empName: widget.empName,
                     ),
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF644BA4),
-                  side: const BorderSide(color: Color(0xFF644BA4), width: 1.5),
+                  side: const BorderSide(
+                      color: Color(0xFF644BA4), width: 1.5),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
                 icon: const Icon(Icons.calendar_month_rounded, size: 20),
                 label: const Text(
                   "Previous Attendance Data",
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style:
+                  TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -862,7 +866,7 @@ class AttendanceRecord {
   final String date;
   final String? checkIn;
   final String? checkOut;
-  final String status; // 'present', 'absent', 'weekend'
+  final String status;
 
   AttendanceRecord({
     required this.date,
@@ -873,10 +877,10 @@ class AttendanceRecord {
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> j) {
     return AttendanceRecord(
-      date: j['date'] ?? '',
-      checkIn: j['check_in'],
+      date:     j['date']     ?? '',
+      checkIn:  j['check_in'],
       checkOut: j['check_out'],
-      status: j['status'] ?? 'absent',
+      status:   j['status']   ?? 'absent',
     );
   }
 }
@@ -900,14 +904,14 @@ class AttendanceHistoryPage extends StatefulWidget {
 
 class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
     with SingleTickerProviderStateMixin {
-  List<AttendanceRecord> _records = [];
-  bool _loading = true;
-  String _error = '';
+  List<AttendanceRecord> _records  = [];
+  bool   _loading      = true;
+  String _error        = '';
 
   late AnimationController _animCtrl;
 
   int _presentCount = 0;
-  int _absentCount = 0;
+  int _absentCount  = 0;
   int _weekendCount = 0;
 
   @override
@@ -927,10 +931,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
   }
 
   Future<void> _fetchHistory() async {
-    setState(() {
-      _loading = true;
-      _error = '';
-    });
+    setState(() { _loading = true; _error = ''; });
 
     try {
       final res = await http.post(
@@ -940,91 +941,40 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
       );
 
       if (res.body.trim().isEmpty) {
-        setState(() {
-          _error = "Server returned empty response";
-          _loading = false;
-        });
+        setState(() { _error = "Server returned empty response"; _loading = false; });
         return;
       }
 
       final data = jsonDecode(res.body);
 
       if (data['status'] == 'success') {
-        final List raw = data['records'] ?? [];
-        final records =
-        raw.map((r) => AttendanceRecord.fromJson(r)).toList();
-
+        final List raw     = data['records'] ?? [];
+        final records      = raw.map((r) => AttendanceRecord.fromJson(r)).toList();
         int present = 0, absent = 0, weekend = 0;
         for (final r in records) {
           if (r.status == 'present') present++;
-          if (r.status == 'absent') absent++;
+          if (r.status == 'absent')  absent++;
           if (r.status == 'weekend') weekend++;
         }
-
         setState(() {
-          _records = records;
+          _records      = records;
           _presentCount = present;
-          _absentCount = absent;
+          _absentCount  = absent;
           _weekendCount = weekend;
-          _loading = false;
+          _loading      = false;
         });
         _animCtrl.forward();
       } else {
-        setState(() {
-          _error = data['message'] ?? "Failed to load history";
-          _loading = false;
-        });
+        setState(() { _error = data['message'] ?? "Failed to load history"; _loading = false; });
       }
     } catch (e) {
-      setState(() {
-        _error = "Connection error — check internet";
-        _loading = false;
-      });
+      setState(() { _error = "Connection error — check internet"; _loading = false; });
     }
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'present':
-        return Colors.green;
-      case 'absent':
-        return Colors.red.shade400;
-      case 'weekend':
-        return Colors.blueGrey.shade300;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _statusIcon(String status) {
-    switch (status) {
-      case 'present':
-        return Icons.check_circle_rounded;
-      case 'absent':
-        return Icons.cancel_rounded;
-      case 'weekend':
-        return Icons.weekend_rounded;
-      default:
-        return Icons.help_outline;
-    }
-  }
-
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'present':
-        return 'Present';
-      case 'absent':
-        return 'Absent';
-      case 'weekend':
-        return 'Weekend';
-      default:
-        return status;
-    }
-  }
-
-  // ── Build ─────────────────────────────────────────────────────────
+  Color    _statusColor(String s) => s == 'present' ? Colors.green : s == 'absent' ? Colors.red.shade400 : Colors.blueGrey.shade300;
+  IconData _statusIcon(String s)  => s == 'present' ? Icons.check_circle_rounded : s == 'absent' ? Icons.cancel_rounded : Icons.weekend_rounded;
+  String   _statusLabel(String s) => s == 'present' ? 'Present' : s == 'absent' ? 'Absent' : 'Weekend';
 
   @override
   Widget build(BuildContext context) {
@@ -1033,10 +983,8 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
       appBar: AppBar(
         backgroundColor: const Color(0xFF644BA4),
         foregroundColor: Colors.white,
-        title: const Text(
-          "Attendance History",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text("Attendance History",
+            style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           IconButton(
@@ -1047,9 +995,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
         ],
       ),
       body: _loading
-          ? const Center(
-        child: CircularProgressIndicator(color: Color(0xFF644BA4)),
-      )
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF644BA4)))
           : _error.isNotEmpty
           ? _buildError()
           : _buildContent(),
@@ -1063,14 +1009,10 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.cloud_off_rounded,
-                size: 64, color: Colors.grey.shade400),
+            Icon(Icons.cloud_off_rounded, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            Text(
-              _error,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
-            ),
+            Text(_error, textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, color: Colors.grey.shade700)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _fetchHistory,
@@ -1079,8 +1021,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF644BA4),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
           ],
@@ -1095,12 +1036,8 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
         _buildSummaryHeader(),
         Expanded(
           child: _records.isEmpty
-              ? Center(
-            child: Text(
-              "No attendance records found.",
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          )
+              ? Center(child: Text("No attendance records found.",
+              style: TextStyle(color: Colors.grey.shade600)))
               : ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             itemCount: _records.length,
@@ -1109,26 +1046,17 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
               return FadeTransition(
                 opacity: CurvedAnimation(
                   parent: _animCtrl,
-                  curve: Interval(
-                    (delay / 800).clamp(0.0, 1.0),
-                    1.0,
-                    curve: Curves.easeOut,
-                  ),
+                  curve: Interval((delay / 800).clamp(0.0, 1.0), 1.0,
+                      curve: Curves.easeOut),
                 ),
                 child: SlideTransition(
                   position: Tween<Offset>(
-                    begin: const Offset(0, 0.15),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(
-                      parent: _animCtrl,
-                      curve: Interval(
-                        (delay / 800).clamp(0.0, 1.0),
-                        1.0,
-                        curve: Curves.easeOut,
-                      ),
-                    ),
-                  ),
+                      begin: const Offset(0, 0.15), end: Offset.zero)
+                      .animate(CurvedAnimation(
+                    parent: _animCtrl,
+                    curve: Interval((delay / 800).clamp(0.0, 1.0), 1.0,
+                        curve: Curves.easeOut),
+                  )),
                   child: _buildRecordCard(_records[i]),
                 ),
               );
@@ -1139,7 +1067,6 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
     );
   }
 
-  // ── Summary header ────────────────────────────────────────────────
   Widget _buildSummaryHeader() {
     return Container(
       width: double.infinity,
@@ -1163,29 +1090,19 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.empName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const Text(
-            "Last 30 Days Summary",
-            style: TextStyle(color: Color(0xFFCE93D8), fontSize: 12),
-          ),
+          Text(widget.empName,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text("Last 30 Days Summary",
+              style: TextStyle(color: Color(0xFFCE93D8), fontSize: 12)),
           const SizedBox(height: 14),
           Row(
             children: [
-              _summaryChip(Icons.check_circle_rounded, "$_presentCount",
-                  "Present", Colors.green.shade300),
+              _summaryChip(Icons.check_circle_rounded, "$_presentCount", "Present", Colors.green.shade300),
               const SizedBox(width: 10),
-              _summaryChip(Icons.cancel_rounded, "$_absentCount", "Absent",
-                  Colors.red.shade300),
+              _summaryChip(Icons.cancel_rounded, "$_absentCount", "Absent", Colors.red.shade300),
               const SizedBox(width: 10),
-              _summaryChip(Icons.weekend_rounded, "$_weekendCount", "Weekend",
-                  Colors.blueGrey.shade200),
+              _summaryChip(Icons.weekend_rounded, "$_weekendCount", "Weekend", Colors.blueGrey.shade200),
             ],
           ),
         ],
@@ -1193,8 +1110,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
     );
   }
 
-  Widget _summaryChip(
-      IconData icon, String count, String label, Color color) {
+  Widget _summaryChip(IconData icon, String count, String label, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
@@ -1208,23 +1124,19 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
             const SizedBox(height: 4),
             Text(count,
                 style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold)),
+                    color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             Text(label,
-                style: const TextStyle(
-                    color: Color(0xFFCE93D8), fontSize: 11)),
+                style: const TextStyle(color: Color(0xFFCE93D8), fontSize: 11)),
           ],
         ),
       ),
     );
   }
 
-  // ── Record card ───────────────────────────────────────────────────
   Widget _buildRecordCard(AttendanceRecord r) {
-    final color = _statusColor(r.status);
-    final icon = _statusIcon(r.status);
-    final label = _statusLabel(r.status);
+    final color     = _statusColor(r.status);
+    final icon      = _statusIcon(r.status);
+    final label     = _statusLabel(r.status);
     final isWeekend = r.status == 'weekend';
 
     return Container(
@@ -1239,9 +1151,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border(
-          left: BorderSide(color: color, width: 4),
-        ),
+        border: Border(left: BorderSide(color: color, width: 4)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1258,85 +1168,62 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    _dayNumber(r.date),
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                      height: 1,
-                    ),
-                  ),
-                  Text(
-                    _monthShort(r.date),
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: color,
-                        fontWeight: FontWeight.w600),
-                  ),
+                  Text(_dayNumber(r.date),
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                          height: 1)),
+                  Text(_monthShort(r.date),
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: color,
+                          fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
-
             const SizedBox(width: 12),
-
-            // Day name + status label
+            // Day name + status
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _dayName(r.date),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
-                    ),
-                  ),
+                  Text(_dayName(r.date),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF333333))),
                   const SizedBox(height: 2),
                   Row(
                     children: [
                       Icon(icon, size: 13, color: color),
                       const SizedBox(width: 4),
-                      Text(
-                        label,
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: color,
-                            fontWeight: FontWeight.w500),
-                      ),
+                      Text(label,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: color,
+                              fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ],
               ),
             ),
-
-            // Check in / out times
+            // Times
             if (!isWeekend)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _timeChip(
-                    Icons.login_rounded,
-                    r.checkIn ?? '--:--',
-                    Colors.green,
-                  ),
+                  _timeChip(Icons.login_rounded,  r.checkIn  ?? '--:--', Colors.green),
                   const SizedBox(height: 4),
-                  _timeChip(
-                    Icons.logout_rounded,
-                    r.checkOut ?? '--:--',
-                    Colors.orange,
-                  ),
+                  _timeChip(Icons.logout_rounded, r.checkOut ?? '--:--', Colors.orange),
                 ],
               )
             else
-              Text(
-                "Day Off",
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blueGrey.shade300,
-                    fontStyle: FontStyle.italic),
-              ),
+              Text("Day Off",
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blueGrey.shade300,
+                      fontStyle: FontStyle.italic)),
           ],
         ),
       ),
@@ -1350,40 +1237,22 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage>
       children: [
         Icon(icon, size: 12, color: isEmpty ? Colors.grey : color),
         const SizedBox(width: 3),
-        Text(
-          time.isEmpty ? '--:--' : time,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isEmpty ? Colors.grey : color,
-          ),
-        ),
+        Text(time.isEmpty ? '--:--' : time,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isEmpty ? Colors.grey : color)),
       ],
     );
   }
 
   String _dayNumber(String date) {
-    try {
-      return DateFormat("dd").format(DateTime.parse(date));
-    } catch (_) {
-      return '--';
-    }
-
+    try { return DateFormat("dd").format(DateTime.parse(date)); } catch (_) { return '--'; }
   }
-
   String _monthShort(String date) {
-    try {
-      return DateFormat("MMM").format(DateTime.parse(date)).toUpperCase();
-    } catch (_) {
-      return '';
-    }
+    try { return DateFormat("MMM").format(DateTime.parse(date)).toUpperCase(); } catch (_) { return ''; }
   }
-
   String _dayName(String date) {
-    try {
-      return DateFormat("EEEE").format(DateTime.parse(date));
-    } catch (_) {
-      return date;
-    }
+    try { return DateFormat("EEEE").format(DateTime.parse(date)); } catch (_) { return date; }
   }
 }
