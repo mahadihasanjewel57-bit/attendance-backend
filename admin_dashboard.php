@@ -103,6 +103,8 @@ $att = $conn->query("
         <a href="admin_device.php?token=<?= $t ?>">Devices</a>
         <a href="admin_import.php?token=<?= $t ?>">Import</a>
          <a href="admin_settings.php?token=<?= $t ?>" class="active">Settings</a>
+          <a href=" admin_attendance_delete.php?token=<?= $t ?>" class="active">Delete</a>
+       
         <a href="admin_login.php">Logout</a>
     </div>
 </div>
